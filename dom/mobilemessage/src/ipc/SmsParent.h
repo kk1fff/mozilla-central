@@ -18,6 +18,8 @@ class SmsRequest;
 
 namespace mobilemessage {
 
+class MobileMessageCallback;
+
 class SmsParent : public PSmsParent
                 , public nsIObserver
 {
@@ -52,6 +54,9 @@ protected:
 
   virtual bool
   DeallocPSmsRequest(PSmsRequestParent* aActor) MOZ_OVERRIDE;
+
+  bool
+  GetMobileMessageDataFromMessage(nsISupports* aMsg, MobileMessageData& aData);
 };
 
 class SmsRequestParent : public PSmsRequestParent
@@ -59,6 +64,7 @@ class SmsRequestParent : public PSmsRequestParent
   friend class SmsParent;
 
   nsRefPtr<SmsRequest> mSmsRequest;
+  nsRefPtr<MobileMessageCallback> mCallback;
 
 public:
   void

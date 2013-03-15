@@ -15,6 +15,11 @@
 
 namespace mozilla {
 namespace dom {
+namespace mobilemessage {
+class MmsMessageData;
+}
+
+class ContentParent;
 
 class MmsMessage MOZ_FINAL : public nsIDOMMozMmsMessage
 {
@@ -33,6 +38,8 @@ public:
              const nsAString&                               aSmil,
              const nsTArray<idl::MmsAttachment>&            aAttachments);
 
+  MmsMessage(const mobilemessage::MmsMessageData& aData);
+
   static nsresult Create(int32_t               aId,
                          const nsAString&      aDelivery,
                          const JS::Value&      aDeliveryStatus,
@@ -45,6 +52,9 @@ public:
                          const JS::Value&      aAttachments,
                          JSContext*            aCx,
                          nsIDOMMozMmsMessage** aMessage);
+
+  bool GetMmsMessageData(ContentParent* aParent,
+                         mobilemessage::MmsMessageData* aData);
 
 private:
 

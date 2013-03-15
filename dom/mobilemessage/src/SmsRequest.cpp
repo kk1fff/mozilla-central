@@ -354,7 +354,7 @@ SmsRequest::NotifyMessageSent(nsISupports *aMessage)
 
   if (mParent) {
     SmsMessageData data = SmsMessageData(smsMessage->GetData());
-    return SendMessageReply(MessageReply(ReplyMessageSend(data)));
+    return SendMessageReply(MessageReply(ReplyMessageSend(MobileMessageData(data))));
   }
   return NotifySuccess<nsIDOMMozSmsMessage*>(smsMessage);
 }

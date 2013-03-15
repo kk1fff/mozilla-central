@@ -4,6 +4,7 @@
 
 #include "SmsChild.h"
 #include "SmsMessage.h"
+#include "MmsMessage.h"
 #include "Constants.h"
 #include "nsIObserverService.h"
 #include "mozilla/Services.h"
@@ -17,16 +18,28 @@ using namespace mozilla::dom::mobilemessage;
 namespace {
 
 void
-NotifyObserversWithSmsMessage(const char* aEventName,
-                              const SmsMessageData& aMessageData)
+NotifyObserversWithMobileMessage(const char* aEventName,
+                                 const MobileMessageData& aMsgData)
 {
   nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
   if (!obs) {
     return;
   }
 
-  nsCOMPtr<SmsMessage> message = new SmsMessage(aMessageData);
-  obs->NotifyObservers(message, aEventName, nullptr);
+  nsCOMPtr<nsISupports> msg;
+  switch (aMsgData.type()) {
+  case MobileMessageData::TMmsMessageData:
+    msg = new MmsMessage(aMsgData.get_MmsMessageData());
+    break;
+  case MobileMessageData::TSmsMessageData:
+    msg = new SmsMessage(aMsgData.get_SmsMessageData());
+    break;
+  default:
+    MOZ_NOT_REACHED("Received invalid response parameters!");
+    return;
+  }
+
+  obs->NotifyObservers(msg, aEventName, nullptr);
 }
 
 } // anonymous namespace
@@ -51,44 +64,44 @@ SmsChild::ActorDestroy(ActorDestroyReason aWhy)
 }
 
 bool
-SmsChild::RecvNotifyReceivedMessage(const SmsMessageData& aMessageData)
+SmsChild::RecvNotifyReceivedMessage(const MobileMessageData& aMessageData)
 {
-  NotifyObserversWithSmsMessage(kSmsReceivedObserverTopic, aMessageData);
+  NotifyObserversWithMobileMessage(kSmsReceivedObserverTopic, aMessageData);
   return true;
 }
 
 bool
-SmsChild::RecvNotifySendingMessage(const SmsMessageData& aMessageData)
+SmsChild::RecvNotifySendingMessage(const MobileMessageData& aMessageData)
 {
-  NotifyObserversWithSmsMessage(kSmsSendingObserverTopic, aMessageData);
+  NotifyObserversWithMobileMessage(kSmsSendingObserverTopic, aMessageData);
   return true;
 }
 
 bool
-SmsChild::RecvNotifySentMessage(const SmsMessageData& aMessageData)
+SmsChild::RecvNotifySentMessage(const MobileMessageData& aMessageData)
 {
-  NotifyObserversWithSmsMessage(kSmsSentObserverTopic, aMessageData);
+  NotifyObserversWithMobileMessage(kSmsSentObserverTopic, aMessageData);
   return true;
 }
 
 bool
-SmsChild::RecvNotifyFailedMessage(const SmsMessageData& aMessageData)
+SmsChild::RecvNotifyFailedMessage(const MobileMessageData& aMessageData)
 {
-  NotifyObserversWithSmsMessage(kSmsFailedObserverTopic, aMessageData);
+  NotifyObserversWithMobileMessage(kSmsFailedObserverTopic, aMessageData);
   return true;
 }
 
 bool
-SmsChild::RecvNotifyDeliverySuccessMessage(const SmsMessageData& aMessageData)
+SmsChild::RecvNotifyDeliverySuccessMessage(const MobileMessageData& aMessageData)
 {
-  NotifyObserversWithSmsMessage(kSmsDeliverySuccessObserverTopic, aMessageData);
+  NotifyObserversWithMobileMessage(kSmsDeliverySuccessObserverTopic, aMessageData);
   return true;
 }
 
 bool
-SmsChild::RecvNotifyDeliveryErrorMessage(const SmsMessageData& aMessageData)
+SmsChild::RecvNotifyDeliveryErrorMessage(const MobileMessageData& aMessageData)
 {
-  NotifyObserversWithSmsMessage(kSmsDeliveryErrorObserverTopic, aMessageData);
+  NotifyObserversWithMobileMessage(kSmsDeliveryErrorObserverTopic, aMessageData);
   return true;
 }
 
@@ -128,6 +141,24 @@ SmsRequestChild::ActorDestroy(ActorDestroyReason aWhy)
   // Nothing needed here.
 }
 
+already_AddRefed<nsISupports>
+SmsRequestChild::GetMessageFromMobileMessageData(const MobileMessageData& aData)
+{
+  nsCOMPtr<nsISupports> mMsg;
+  switch(aData. type()) {
+  case MobileMessageData::TMmsMessageData:
+    mMsg = new MmsMessage(aData.get_MmsMessageData());
+    break;
+  case MobileMessageData::TSmsMessageData:
+    mMsg = new SmsMessage(aData.get_SmsMessageData());
+    break;
+  default:
+    MOZ_NOT_REACHED("Unexpected type of MobileMessageData");
+    return nullptr;
+  }
+  return mMsg.forget();
+}
+
 bool
 SmsRequestChild::Recv__delete__(const MessageReply& aReply)
 {
@@ -136,8 +167,10 @@ SmsRequestChild::Recv__delete__(const MessageReply& aReply)
   nsCOMPtr<SmsMessage> message;
   switch(aReply.type()) {
     case MessageReply::TReplyMessageSend:
-      message = new SmsMessage(aReply.get_ReplyMessageSend().messageData());
-      mReplyRequest->NotifyMessageSent(message);
+      {
+        nsCOMPtr<nsISupports> msg = GetMessageFromMobileMessageData(aReply.get_ReplyMessageSend().messageData());
+        mReplyRequest->NotifyMessageSent(msg.get());
+      }
       break;
     case MessageReply::TReplyMessageSendFail:
       mReplyRequest->NotifySendMessageFailed(aReply.get_ReplyMessageSendFail().error());

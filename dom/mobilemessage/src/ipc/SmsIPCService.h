@@ -27,6 +27,7 @@ public:
   NS_DECL_NSIMMSSERVICE
   NS_DECL_NSIMOBILEMESSAGEDATABASESERVICE
 
+  SmsIPCService();
 private:
   static PSmsChild* GetSmsChild();
 };

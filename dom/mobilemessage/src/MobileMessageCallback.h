@@ -7,6 +7,7 @@
 #define mozilla_dom_mobilemessage_MobileMessageCallback_h
 
 #include "nsIMobileMessageCallback.h"
+#include "mozilla/dom/mobilemessage/PSmsRequest.h"
 #include "nsCOMPtr.h"
 #include "DOMRequest.h"
 
@@ -16,6 +17,9 @@ namespace mozilla {
 namespace dom {
 namespace mobilemessage {
 
+class SmsRequestParent;
+class SendMessageReply;
+
 class MobileMessageCallback MOZ_FINAL : public nsIMobileMessageCallback
 {
 public:
@@ -23,12 +27,20 @@ public:
   NS_DECL_NSIMOBILEMESSAGECALLBACK
 
   MobileMessageCallback(DOMRequest* aDOMRequest);
+  MobileMessageCallback(SmsRequestParent* aReqParent);
+
+  void SetActorDied() {
+    mParentAlive = false;
+  }
 
 private:
   ~MobileMessageCallback();
 
   nsRefPtr<DOMRequest> mDOMRequest;
+  SmsRequestParent* mParent;
+  bool mParentAlive;
 
+  void SendMessageReply(const MessageReply& aReply);
   nsresult NotifySuccess(const jsval& aResult);
   nsresult NotifySuccess(nsISupports *aMessage);
   nsresult NotifyError(int32_t aError);
