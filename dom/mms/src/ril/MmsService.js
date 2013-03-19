@@ -18,10 +18,10 @@ const RIL_MMSSERVICE_CID = Components.ID("{217ddd76-75db-4210-955d-8806cd8d87f9}
 
 const DEBUG = false;
 
-const kMmsSendingObserverTopic           = "mms-sending";
-const kMmsSentObserverTopic              = "mms-sent";
-const kMmsFailedObserverTopic            = "mms-failed";
-const kMmsReceivedObserverTopic          = "mms-received";
+const kSmsSendingObserverTopic           = "sms-sending";
+const kSmsSentObserverTopic              = "sms-sent";
+const kSmsFailedObserverTopic            = "sms-failed";
+const kSmsReceivedObserverTopic          = "sms-received";
 
 const kNetworkInterfaceStateChangedTopic = "network-interface-state-changed";
 const kXpcomShutdownObserverTopic        = "xpcom-shutdown";
@@ -1039,7 +1039,7 @@ MmsService.prototype = {
         }
 
         // Notifing new comming notification indication through notifyObservers.
-        Services.obs.notifyObservers(domMessage, kMmsReceivedObserverTopic, null);
+        Services.obs.notifyObservers(domMessage, kSmsReceivedObserverTopic, null);
 
         let retrievalMode = RETRIEVAL_MODE_MANUAL;
         try {
@@ -1109,7 +1109,7 @@ MmsService.prototype = {
               }
 
               // Notifing new retrieved MMS message through notifyObservers.
-              Services.obs.notifyObservers(domMessage, kMmsReceivedObserverTopic, null);
+              Services.obs.notifyObservers(domMessage, kSmsReceivedObserverTopic, null);
             }).bind(this)
           );
         }).bind(this));
@@ -1228,11 +1228,11 @@ MmsService.prototype = {
         debug("Marking the delivery state/staus is done. Notify sent or failed.");
         if (!aIsSentSuccess) {
           aRequest.notifySendMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-          Services.obs.notifyObservers(aDomMessage, kMmsFailedObserverTopic, null);
+          Services.obs.notifyObservers(aDomMessage, kSmsFailedObserverTopic, null);
           return;
         }
         aRequest.notifyMessageSent(aDomMessage);
-        Services.obs.notifyObservers(aDomMessage, kMmsSentObserverTopic, null);
+        Services.obs.notifyObservers(aDomMessage, kSmsSentObserverTopic, null);
       });
     };
 
@@ -1241,7 +1241,7 @@ MmsService.prototype = {
       .saveSendingMessage(savableMessage,
                           function notifySendingResult(aRv, aDomMessage) {
       debug("Saving sending message is done. Start to send.");
-      Services.obs.notifyObservers(aDomMessage, kMmsSendingObserverTopic, null);
+      Services.obs.notifyObservers(aDomMessage, kSmsSendingObserverTopic, null);
       let sendTransaction;
       try {
         sendTransaction = new SendTransaction(savableMessage);
