@@ -275,11 +275,13 @@ NeckoParent::AllocPTCPSocket(const nsString& aHost,
                    KILLING CHILD PROCESS\n");
     return nullptr;
   }
+  /*
   if (aBrowser && !AssertAppProcessPermission(aBrowser, "tcp-socket")) {
     printf_stderr("NeckoParent::AllocPTCPSocket: FATAL error: app doesn't permit tcp-socket connections \
                    KILLING CHILD PROCESS\n");
     return nullptr;
   }
+  */
   TCPSocketParent* p = new TCPSocketParent();
   p->AddRef();
   return p;

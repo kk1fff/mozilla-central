@@ -342,9 +342,9 @@ TCPSocket.prototype = {
 
     // in the testing case, init won't be called and
     // hasPrivileges will be null. We want to proceed to test.
-    if (this._hasPrivileges !== true && this._hasPrivileges !== null) {
-      throw new Error("TCPSocket does not have permission in this context.\n");
-    }
+    // if (this._hasPrivileges !== true && this._hasPrivileges !== null) {
+    //   throw new Error("TCPSocket does not have permission in this context.\n");
+    // }
     let that = new TCPSocket();
 
     that.useWin = this.useWin;

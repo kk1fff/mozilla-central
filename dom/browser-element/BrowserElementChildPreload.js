@@ -24,7 +24,7 @@ let whitelistedEvents = [
 ];
 
 function debug(msg) {
-  //dump("BrowserElementChildPreload - " + msg + "\n");
+  dump("BrowserElementChildPreload - " + msg + "\n");
 }
 
 function sendAsyncMsg(msg, data) {
@@ -53,6 +53,137 @@ function sendAsyncMsg(msg, data) {
  */
 
 var global = this;
+
+function runTCPTest(win, clientLog) {
+  function log(msg) {
+    dump("tcp socket: " + msg);
+    //clientLog(msg);
+  }
+  const CC = Components.Constructor;
+
+  // Some binary data to send.
+  const DATA_ARRAY = [0, 255, 254, 0, 1, 2, 3, 0, 255, 255, 254, 0],
+        DATA_ARRAY_BUFFER = new ArrayBuffer(DATA_ARRAY.length),
+        TYPED_DATA_ARRAY = new Uint8Array(DATA_ARRAY_BUFFER),
+        HELLO_WORLD = "hlo wrld. ",
+        BIG_ARRAY = new Array(1024*10),
+        BIG_ARRAY_2 = new Array(65539);
+
+  TYPED_DATA_ARRAY.set(DATA_ARRAY, 0);
+
+  for (var i_big = 0; i_big < BIG_ARRAY.length; i_big++) {
+    BIG_ARRAY[i_big] = Math.floor(Math.random() * 256);
+    BIG_ARRAY_2[i_big] = Math.floor(Math.random() * 256);
+  }
+
+  function buildBuffer(size) {
+    let arr = new Array(size);
+    for (var i = 0; i < arr.length; i++) {
+      arr[i] = Math.floor(Math.random() * 256);
+    }
+    let buf = new ArrayBuffer(size);
+    let bufarr = new Uint8Array(buf);
+    bufarr.set(arr);
+    return [arr, buf];
+  }
+
+  let [DATA, BUFFER] = buildBuffer(1 * 1024);
+
+  let InputStreamPump = CC("@mozilla.org/network/input-stream-pump;1",
+                           "nsIInputStreamPump",
+                           "init"),
+      BinaryInputStream = CC("@mozilla.org/binaryinputstream;1",
+                             "nsIBinaryInputStream",
+                             "setInputStream"),
+      BinaryOutputStream = CC("@mozilla.org/binaryoutputstream;1",
+                              "nsIBinaryOutputStream",
+                              "setOutputStream");
+  let TCPSocket = Cc["@mozilla.org/tcp-socket;1"].createInstance(Ci.nsIDOMTCPSocket);
+
+  TCPSocket.QueryInterface(Ci.nsIDOMGlobalPropertyInitializer).init(win);
+
+  const gInChild = Cc["@mozilla.org/xre/app-info;1"].getService(Ci.nsIXULRuntime)
+          .processType != Ci.nsIXULRuntime.PROCESS_TYPE_DEFAULT;
+
+  Cu.import("resource://gre/modules/Services.jsm");
+
+  function makeExpectData(name, expectedData, fromEvent, callback) {
+    let dataBuffer = fromEvent ? null : [], done = false;
+    let dataBufferView = null;
+    return function(receivedData) {
+      log("Received: " + Date.now());
+      if (receivedData.data) {
+        receivedData = receivedData.data;
+      }
+      let recvLength = receivedData.byteLength !== undefined ?
+            receivedData.byteLength : receivedData.length;
+
+      if (fromEvent) {
+        if (dataBuffer) {
+          let newBuffer = new ArrayBuffer(dataBuffer.byteLength + recvLength);
+          let newBufferView = new Uint8Array(newBuffer);
+          newBufferView.set(dataBufferView, 0);
+          newBufferView.set(receivedData, dataBuffer.byteLength);
+          dataBuffer = newBuffer;
+          dataBufferView = newBufferView;
+        }
+        else {
+          dataBuffer = receivedData;
+          dataBufferView = new Uint8Array(dataBuffer);
+        }
+      }
+      else {
+        dataBuffer = dataBuffer.concat(receivedData);
+      }
+
+      let dataView = dataBuffer.byteLength !== undefined ? new Uint8Array(dataBuffer) : dataBuffer;
+      if (dataView.length >= expectedData.length) {
+        // check the bytes are equivalent
+        for (let i = 0; i < expectedData.length; i++) {
+          if (dataView[i] !== expectedData[i]) {
+            log(name + ' Received mismatched character at position ' + i);
+          }
+        }
+        if (dataView.length > expectedData.length)
+          log(name + ' Received ' + dataView.length + ' bytes but only expected ' +
+                   expectedData.length + ' bytes.');
+
+        done = true;
+        if (callback) {
+          callback();
+        } else {
+        }
+      }
+    };
+  }
+
+  var sock = null, failure_drain = null;
+
+  function connectSock() {
+    log("connect");
+    sock = TCPSocket.open(
+      '127.0.0.1', 56789,
+      { binaryType: 'arraybuffer' });
+  }
+
+  var count = 0;
+  function sendData(times) {
+    let timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    timer.initWithCallback(function() {
+      if (times != 0) {
+        sendData(times - 1);
+      }
+      let l = "send (size: " + DATA.length + ") [" + count++ + "]" + Date.now();
+      sock.send(BUFFER);
+      log(l);
+    }, 50, Ci.nsITimer.TYPE_ONE_SHOT);
+  }
+
+  connectSock();
+  sock.onopen = function () {
+    sendData(1000);
+  };
+}
 
 function BrowserElementChild() {
   // Maps outer window id --> weak ref to window.  Used by modal dialog code.
@@ -431,6 +562,11 @@ BrowserElementChild.prototype = {
     if (targetDocShell != docShell) {
       return;
     }
+
+    let win = e.target.defaultView;
+    XPCNativeWrapper.unwrap(win).runTCPTest = function(clientLog) {
+      runTCPTest(content, clientLog);
+    };
 
     let uri = docShell.QueryInterface(Ci.nsIWebNavigation).currentURI;
     debug("Window created: " + uri.spec);

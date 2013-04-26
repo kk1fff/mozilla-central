@@ -1171,3 +1171,109 @@ Services.obs.addObserver(function(aSubject, aTopic, aData) {
     pageURL: data.pageURL
   });
 }, "activity-done", false);
+
+var server;
+(function func () {
+  function debug(msg) {
+    dump("test-server: " + msg + "\n");
+  }
+
+  let CC = Components.Constructor;
+  const ServerSocket = CC(
+    "@mozilla.org/network/server-socket;1",
+    "nsIServerSocket",
+    "init");
+  const InputStreamPump = CC("@mozilla.org/network/input-stream-pump;1",
+                             "nsIInputStreamPump",
+                             "init"),
+        BinaryInputStream = CC("@mozilla.org/binaryinputstream;1",
+                               "nsIBinaryInputStream",
+                               "setInputStream"),
+        BinaryOutputStream = CC("@mozilla.org/binaryoutputstream;1",
+                                "nsIBinaryOutputStream",
+                                "setOutputStream"),
+        TCPSocket = new (CC("@mozilla.org/tcp-socket;1",
+                            "nsIDOMTCPSocket"))();
+  /**
+   * Spin up a listening socket and associate at most one live, accepted socket
+   * with ourselves.
+   */
+  function TestServer() {
+    this.listener = ServerSocket(56789, false, -1);
+    debug('server: listening on ' + this.listener.port);
+    this.listener.asyncListen(this);
+
+    this.binaryInput = null;
+    this.input = null;
+    this.binaryOutput = null;
+    this.output = null;
+
+    this.onaccept = null;
+    this.ondata = null;
+    this.onclose = null;
+  }
+
+  TestServer.prototype = {
+    onSocketAccepted: function(socket, trans) {
+      debug("accepting.");
+      this.input = trans.openInputStream(0, 0, 0);
+      this.binaryInput = new BinaryInputStream(this.input);
+      this.output = trans.openOutputStream(0, 0, 0);
+      this.binaryOutput = new BinaryOutputStream(this.output);
+
+      new InputStreamPump(this.input, -1, -1, 0, 0, false).asyncRead(this, null);
+
+      if (this.onaccept)
+        this.onaccept();
+    },
+
+    onStopListening: function(socket) {
+    },
+
+    count: 0,
+
+    onDataAvailable: function(request, context, inputStream, offset, count) {
+      let time = Date.now();
+      var readData = this.binaryInput.readByteArray(count);
+      for (var n = 0; n < readData.length/1024; n++) {
+        debug("recv[" + this.count++ + "]: " + (time - n*50) + " len: " + readData.length);
+      }
+      this.binaryOutput.writeByteArray(readData, readData.length);
+      if (this.ondata) {
+        try {
+          this.ondata(readData);
+        } catch(ex) {
+          // re-throw if this is from do_throw
+          if (ex === Cr.NS_ERROR_ABORT)
+            throw ex;
+        }
+      }
+    },
+
+    onStartRequest: function(request, context) {
+    },
+
+    onStopRequest: function(request, context, status) {
+      if (this.onclose)
+        this.onclose();
+    },
+
+    close: function() {
+      this.binaryInput.close();
+      this.binaryOutput.close();
+    },
+
+    /**
+     * Forget about the socket we knew about before.
+     */
+    reset: function() {
+      this.binaryInput = null;
+      this.input = null;
+      this.binaryOutput = null;
+      this.output = null;
+    }
+  };
+
+  server = new TestServer();
+
+})();
