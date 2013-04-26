@@ -12,6 +12,7 @@
 #include "jsapi.h"
 #include "jsfriendapi.h"
 #include "jswrapper.h"
+// #include <sys/time.h>
 
 using mozilla::net::gNeckoChild;
 
@@ -175,6 +176,20 @@ TCPSocketChild::Close()
   SendClose();
   return NS_OK;
 }
+#if 0
+static int count = 0;
+static struct timeval tv;
+static void RecordTime() {
+  //gettimeofday(&tv, NULL);
+}
+
+static void PrintLog() {
+  long long t = tv.tv_sec;
+  t *= 1000;
+  t += tv.tv_usec;
+  //printf_stderr("step-a count: %d time: %lld\n", count++, t);
+}
+#endif
 
 NS_IMETHODIMP
 TCPSocketChild::Send(const JS::Value& aData,
@@ -182,13 +197,13 @@ TCPSocketChild::Send(const JS::Value& aData,
                      uint32_t aByteLength,
                      JSContext* aCx)
 {
+  // RecordTime();
   if (aData.isString()) {
     JSString* jsstr = aData.toString();
     nsDependentJSString str;
     bool ok = str.init(aCx, jsstr);
     NS_ENSURE_TRUE(ok, NS_ERROR_FAILURE);
     SendData(str);
-
   } else {
     NS_ENSURE_TRUE(aData.isObject(), NS_ERROR_FAILURE);
     JSObject* obj = &aData.toObject();
@@ -208,6 +223,7 @@ TCPSocketChild::Send(const JS::Value& aData,
     arr.SwapElements(fallibleArr);
     SendData(arr);
   }
+  // PrintLog();
   return NS_OK;
 }
 

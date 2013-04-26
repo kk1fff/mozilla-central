@@ -166,22 +166,27 @@ function runTCPTest(win, clientLog) {
       { binaryType: 'arraybuffer' });
   }
 
+  var logs = "";
+
   var count = 0;
   function sendData(times) {
+    if (times == 0) {
+      dump(logs);
+      logs = "";
+      return;
+    }
     let timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
     timer.initWithCallback(function() {
-      if (times != 0) {
-        sendData(times - 1);
-      }
+      sendData(times - 1);
       let l = "send (size: " + DATA.length + ") [" + count++ + "]" + Date.now();
       sock.send(BUFFER);
-      log(l);
-    }, 50, Ci.nsITimer.TYPE_ONE_SHOT);
+      logs += (l + "\n");
+    }, 10, Ci.nsITimer.TYPE_ONE_SHOT);
   }
 
   connectSock();
   sock.onopen = function () {
-    sendData(1000);
+    sendData(50 /* 1000 */ );
   };
 }
 

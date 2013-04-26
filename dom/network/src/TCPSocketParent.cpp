@@ -9,6 +9,7 @@
 #include "nsIDOMTCPSocket.h"
 #include "mozilla/unused.h"
 #include "mozilla/AppProcessChecker.h"
+// #include <sys/time.h>
 
 namespace IPC {
 
@@ -88,10 +89,26 @@ TCPSocketParent::RecvResume()
   return true;
 }
 
+#if 0
+static int count = 0;
+static struct timeval tv;
+static void RecordTime() {
+  //gettimeofday(&tv, NULL);
+}
+
+static void PrintLog() {
+  long long t = tv.tv_sec;
+  t *= 1000;
+  t += tv.tv_usec;
+  //printf_stderr("step-b count: %d time: %lld\n", count++, t);
+}
+#endif
+
 bool
 TCPSocketParent::RecvData(const SendableData& aData)
 {
   NS_ENSURE_TRUE(mIntermediary, true);
+  // RecordTime();
 
   nsresult rv;
   switch (aData.type()) {
@@ -112,6 +129,7 @@ TCPSocketParent::RecvData(const SendableData& aData)
       MOZ_NOT_REACHED("unexpected SendableData type");
       return false;
   }
+  // PrintLog();
   return true;
 }
 

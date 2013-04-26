@@ -1231,12 +1231,18 @@ var server;
     },
 
     count: 0,
+    logs: "",
 
     onDataAvailable: function(request, context, inputStream, offset, count) {
       let time = Date.now();
       var readData = this.binaryInput.readByteArray(count);
-      for (var n = 0; n < readData.length/1024; n++) {
-        debug("recv[" + this.count++ + "]: " + (time - n*50) + " len: " + readData.length);
+      for (var n = Math.ceil(readData.length/1024) - 1 ; n >= 0; n--) {
+        this.logs += ("recv[" + this.count++ + "]: " + (time - n*10) + " len: " + readData.length + "\n");
+      }
+      if (this.count >= 50) {
+        dump(this.logs);
+        this.logs = "";
+        this.count = 0;
       }
       this.binaryOutput.writeByteArray(readData, readData.length);
       if (this.ondata) {

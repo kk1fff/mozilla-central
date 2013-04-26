@@ -431,6 +431,8 @@ TCPSocket.prototype = {
     this._socketInputStream.close();
   },
 
+  count: 0,
+
   send: function ts_send(data, byteOffset, byteLength) {
     if (this._readyState !== kOPEN) {
       throw new Error("Socket not open.");
@@ -460,6 +462,8 @@ TCPSocket.prototype = {
       new_stream = new StringInputStream();
       new_stream.setData(data, length);
     }
+    // dump("step-c count: " + this.count++ + "\n");
+    var a = Date.now();
     this._multiplexStream.appendStream(new_stream);
 
     if (newBufferedAmount >= BUFFER_SIZE) {
