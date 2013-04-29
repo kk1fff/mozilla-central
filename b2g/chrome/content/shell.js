@@ -1231,18 +1231,13 @@ var server;
     },
 
     count: 0,
-    logs: "",
+    logs: [],
 
     onDataAvailable: function(request, context, inputStream, offset, count) {
       let time = Date.now();
       var readData = this.binaryInput.readByteArray(count);
       for (var n = Math.ceil(readData.length/1024) - 1 ; n >= 0; n--) {
-        this.logs += ("recv[" + this.count++ + "]: " + (time - n*10) + " len: " + readData.length + "\n");
-      }
-      if (this.count >= 50) {
-        dump(this.logs);
-        this.logs = "";
-        this.count = 0;
+        this.logs.push(time - n * 50);
       }
       this.binaryOutput.writeByteArray(readData, readData.length);
       if (this.ondata) {
@@ -1260,6 +1255,10 @@ var server;
     },
 
     onStopRequest: function(request, context, status) {
+      for (var i = 0; i < this.logs.length; i++) {
+        dump("tcpsocket-recv [" + i + "] " + this.logs[i] + " \n");
+      }
+      this.logs.length = 0;
       if (this.onclose)
         this.onclose();
     },
