@@ -1,0 +1,28 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsISupports.idl"
+#include "nsINetworkManager.idl"
+
+[scriptable, uuid(b44d74db-c9d6-41dd-98ae-a56918d6e6ad)]
+interface nsINetworkInterfaceList : nsISupports
+{
+  /**
+   * Number of the network interfaces that is available.
+   */
+  long getNumberOfInterface();
+  nsINetworkInterface getInterface(in long interfaceIndex);
+};
+
+[scriptable, uuid(eaad3425-e2dc-418d-a91e-a93e5bd27977)]
+interface nsINetworkInterfaceListCallback : nsISupports
+{
+  void onInterfaceListGot(in nsINetworkInterfaceList list);
+};
+
+[scriptable, uuid(5be50bcb-bfe9-4742-b7e6-3e9bb4835369)]
+interface nsINetworkInterfaceListService : nsISupports
+{
+  nsINetworkInterfaceList getDataInterfaceList();
+};
