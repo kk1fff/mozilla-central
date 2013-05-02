@@ -1,0 +1,6 @@
+
+namespace mozilla {
+
+void updateNetworkInterfaceList();
+
+}
