@@ -29,41 +29,9 @@ NetworkInterfaceListService.prototype = {
 
   _requests: {},
 
-  getInterfaceList: function(aCallback) {
-    dump("Patrick in getInterfaceList");
+  getInterfaceList: function() {
     let currentId = this._id++;
-    cpmm.sendAsyncMessage('NetworkInterfaceList:ListInterface', {
-      id: currentId
-    });
-    this._requests[currentId] = {
-      callback: aCallback
-    };
-  },
-
-  receiveMessage: function(aMsg) {
-    let reqId = aMsg.json.id,
-        req = this._requests[reqId];
-
-    if (!req) {
-      return;
-    }
-
-    let callback = req.callback,
-        param = null;
-    switch(aMsg.name) {
-    case 'NetworkInterfaceList:ListInterface:OK':
-      param = new NetworkInterfaceList(aMsg.json.interfaces);
-      break;
-    case 'NetworkInterfaceList:ListInterface:KO':
-      // Leave param null
-    }
-    try {
-      callback.QueryInterface(Ci.nsINetworkInterfaceListCallback).onInterfaceListGot(param);
-    } catch(e) {
-      dump("Error in callback of NetworkInterfaceList: " + e);
-      // Throw this error away.
-    }
-    delete this._requests[reqId];
+    return new NetworkInterfaceList(cpmm.sendSyncMessage('NetworkInterfaceList:ListInterface')[0]);
   }
 };
 
@@ -82,8 +50,6 @@ NetworkInterfaceList.prototype = {
     return this._interfaces[index];
   }
 };
-
-dump("Patrick: loading NetworkInterfaceListService");
 
 this.NSGetFactory = XPCOMUtils.generateNSGetFactory([NetworkInterfaceListService]);
 

@@ -304,12 +304,8 @@ NetworkManager.prototype = {
           httpProxyHost: i.httpProxyHost,
           httpProxyPort: i.httpProxyPort
         });
-        ppmm.sendAsyncMessage("NetworkInterfaceList:ListInterface:OK",
-                              {
-                                id: aMsg.json.id,
-                                interfaces: interfaces
-                              });
       }
+      return interfaces;
       break;
     }
     }
