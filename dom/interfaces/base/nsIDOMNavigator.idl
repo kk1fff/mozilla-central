@@ -29,6 +29,7 @@ interface nsIDOMNavigator : nsISupports
   readonly attribute DOMString             doNotTrack;
   readonly attribute nsIDOMMozPowerManager mozPower;
 
+  void                      testGettingNetworkInterface();
   boolean                   javaEnabled();
   boolean                   taintEnabled();
 

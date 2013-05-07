@@ -66,6 +66,53 @@
 #endif
 
 #include "nsIDOMGlobalPropertyInitializer.h"
+#include "nsINetworkInterfaceListService.h"
+
+namespace {
+
+/* Header file */
+class NetworkInterfaceListCallback : public nsINetworkInterfaceListCallback
+{
+public:
+  NS_DECL_ISUPPORTS
+
+  NS_IMETHODIMP
+  OnInterfaceListGot(nsINetworkInterfaceList *list)
+  {
+    printf_stderr("Got network interface list: %p", list);
+
+    int32_t len;
+    list->GetNumberOfInterface(&len);
+    printf_stderr("Interface list length: %d", len);
+    for (int32_t i = 0; i < len; i++) {
+      nsCOMPtr<nsINetworkInterface> interface;
+      list->GetInterface(i, getter_AddRefs(interface));
+      printInterface(interface.get());
+    }
+
+    return NS_OK;
+  }
+
+  NetworkInterfaceListCallback() { }
+
+  ~NetworkInterfaceListCallback() { }
+
+private:
+  void printInterface(nsINetworkInterface* interface) {
+    nsAutoString ip;
+    interface->GetIp(ip);
+    printf_stderr("  IP: %s", NS_ConvertUTF16toUTF8(ip).get());
+  }
+
+protected:
+  /* additional members */
+};
+
+NS_IMPL_ISUPPORTS1(NetworkInterfaceListCallback, nsINetworkInterfaceListCallback)
+
+NetworkInterfaceListCallback gNetworkListCallback;
+
+}
 
 using namespace mozilla::dom::power;
 
@@ -1580,6 +1627,18 @@ Navigator::GetMozAudioChannelManager(nsISupports** aAudioChannelManager)
   return NS_OK;
 }
 #endif
+
+
+NS_IMETHODIMP
+Navigator::TestGettingNetworkInterface()
+{
+  nsresult rv;
+  nsCOMPtr<nsINetworkInterfaceListService> listService =
+    do_GetService("@mozilla.org/network/interface-list-service;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return listService->GetInterfaceList(&gNetworkListCallback);
+}
 
 } // namespace dom
 } // namespace mozilla
