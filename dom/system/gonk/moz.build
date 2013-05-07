@@ -25,6 +25,7 @@ XPIDL_SOURCES += [
     'nsIVolumeService.idl',
     'nsIVolumeStat.idl',
     'nsIWorkerHolder.idl',
+    'nsINetworkInterfaceListService.idl'
 ]
 
 XPIDL_MODULE = 'dom_system_gonk'

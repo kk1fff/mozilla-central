@@ -7,24 +7,30 @@
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://gre/modules/Services.jsm");
 
-const NETWORKLISTSERVICE_CONTRACTID = "@mozilla.org/network/interface-list-manager;1";
-const NETWORKLISTSERVICE_CID = Components.ID("{bf6dcfc5-f628-4923-ba43-7159691129e7}");
+const NETWORKLISTSERVICE_CONTRACTID = "@mozilla.org/network/interface-list-service;1";
+const NETWORKLISTSERVICE_CID = Components.ID("{3780be6e-7012-4e53-ade6-15212fb88a0d}");
 
 XPCOMUtils.defineLazyServiceGetter(this, "cpmm",
                                    "@mozilla.org/childprocessmessagemanager;1",
                                    "nsISyncMessageSender");
 
 function NetworkInterfaceListService () {
-  cpmm.addEventListener('NetworkInterfaceList:ListInterface:OK', this);
-  cpmm.addEventListener('NetworkInterfaceList:ListInterface:KO', this);
+  cpmm.addMessageListener('NetworkInterfaceList:ListInterface:OK', this);
+  cpmm.addMessageListener('NetworkInterfaceList:ListInterface:KO', this);
 }
 
 NetworkInterfaceListService.prototype = {
+  classID: NETWORKLISTSERVICE_CID,
+
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsINetworkInterfaceListService]),
+
   _id: 0,
+
   _requests: {},
-  getInterfacesList: function(aCallback) {
+
+  getInterfaceList: function(aCallback) {
+    dump("Patrick in getInterfaceList");
     let currentId = this._id++;
     cpmm.sendAsyncMessage('NetworkInterfaceList:ListInterface', {
       id: currentId
@@ -57,6 +63,7 @@ NetworkInterfaceListService.prototype = {
       dump("Error in callback of NetworkInterfaceList: " + e);
       // Throw this error away.
     }
+    delete this._requests[reqId];
   }
 };
 
@@ -65,6 +72,7 @@ function NetworkInterfaceList (aInterfaces) {
 }
 
 NetworkInterfaceList.prototype = {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsINetworkInterfaceList]),
   getNumberOfInterface: function() {
     return this._interfaces.length;
   },
@@ -74,6 +82,8 @@ NetworkInterfaceList.prototype = {
     return this._interfaces[index];
   }
 };
+
+dump("Patrick: loading NetworkInterfaceListService");
 
 this.NSGetFactory = XPCOMUtils.generateNSGetFactory([NetworkInterfaceListService]);
 

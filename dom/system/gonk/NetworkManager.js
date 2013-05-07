@@ -21,6 +21,10 @@ const DEFAULT_PREFERRED_NETWORK_TYPE = Ci.nsINetworkInterface.NETWORK_TYPE_WIFI;
 XPCOMUtils.defineLazyServiceGetter(this, "gSettingsService",
                                    "@mozilla.org/settingsService;1",
                                    "nsISettingsService");
+XPCOMUtils.defineLazyGetter(this, "ppmm", function() {
+  return Cc["@mozilla.org/parentprocessmessagemanager;1"]
+         .getService(Ci.nsIMessageBroadcaster);
+});
 
 const TOPIC_INTERFACE_STATE_CHANGED  = "network-interface-state-changed";
 const TOPIC_INTERFACE_REGISTERED     = "network-interface-registered";
@@ -197,6 +201,8 @@ function NetworkManager() {
       debug("Error reading the 'tethering.wifi.enabled' setting: " + aErrorMessage);
     }
   });
+
+  ppmm.addMessageListener('NetworkInterfaceList:ListInterface', this);
 }
 NetworkManager.prototype = {
   classID:   NETWORKMANAGER_CID,
@@ -276,6 +282,36 @@ NetworkManager.prototype = {
         Services.obs.removeObserver(this, TOPIC_MOZSETTINGS_CHANGED);
         Services.obs.removeObserver(this, TOPIC_INTERFACE_STATE_CHANGED);
         break;
+    }
+  },
+
+  receiveMessage: function receiveMessage(aMsg) {
+    switch (aMsg.name) {
+    case "NetworkInterfaceList:ListInterface": {
+      let interfaces = [];
+      for each (let i in this.networkInterfaces) {
+        interfaces.push({
+          state: i.state,
+          type: i.type,
+          name: i.name,
+          dhcp: i.dhcp,
+          ip: i.ip,
+          netmask: i.netmask,
+          broadcast: i.broadcast,
+          gateway: i.gateway,
+          dns1: i.dns1,
+          dns2: i.dns2,
+          httpProxyHost: i.httpProxyHost,
+          httpProxyPort: i.httpProxyPort
+        });
+        ppmm.sendAsyncMessage("NetworkInterfaceList:ListInterface:OK",
+                              {
+                                id: aMsg.json.id,
+                                interfaces: interfaces
+                              });
+      }
+      break;
+    }
     }
   },
 
@@ -977,3 +1013,5 @@ if (DEBUG) {
 } else {
   debug = function (s) {};
 }
+
+dump("Patrick: loading NetworkManager");

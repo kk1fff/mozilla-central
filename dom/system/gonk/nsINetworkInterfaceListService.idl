@@ -3,18 +3,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsISupports.idl"
-
-[scriptable, uuid(b44d74db-c9d6-41dd-98ae-a56918d6e6ad)]
-interface nsINetworkInterfaceListService : nsISupports
-{
-  void getInterfaceList(in nsINetowkrInterfaceListCallback callback);
-}
-
-[scriptable, uuid(b44d74db-c9d6-41dd-98ae-a56918d6e6ad)]
-interface nsINetworkInterfaceListCallback : nsISupports
-{
-  void onInterfaceListGot(in nsINetworkInterfaceList list);
-}
+#include "nsINetworkManager.idl"
 
 [scriptable, uuid(b44d74db-c9d6-41dd-98ae-a56918d6e6ad)]
 interface nsINetworkInterfaceList : nsISupports
@@ -22,6 +11,18 @@ interface nsINetworkInterfaceList : nsISupports
   /**
    * Number of the network interfaces that is available.
    */
-  int getNumberOfInterface();
-  nsINetworkInterface getInterface(int interfaceIndex);
-}
+  long getNumberOfInterface();
+  nsINetworkInterface getInterface(in long interfaceIndex);
+};
+
+[scriptable, uuid(eaad3425-e2dc-418d-a91e-a93e5bd27977)]
+interface nsINetworkInterfaceListCallback : nsISupports
+{
+  void onInterfaceListGot(in nsINetworkInterfaceList list);
+};
+
+[scriptable, uuid(5be50bcb-bfe9-4742-b7e6-3e9bb4835369)]
+interface nsINetworkInterfaceListService : nsISupports
+{
+  void getInterfaceList(in nsINetworkInterfaceListCallback callback);
+};
