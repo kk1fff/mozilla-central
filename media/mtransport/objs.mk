@@ -77,6 +77,7 @@ MTRANSPORT_LCPPSRCS = \
   transportlayerlog.cpp \
   transportlayerloopback.cpp \
   transportlayerprsock.cpp \
+  gonk_addrs.cpp \
   $(NULL)
 
 MTRANSPORT_CPPSRCS = $(addprefix $(topsrcdir)/media/mtransport/, $(MTRANSPORT_LCPPSRCS))
