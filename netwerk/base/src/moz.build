@@ -69,7 +69,7 @@ CPP_SOURCES += [
     'nsSyncStreamListener.cpp',
     'nsTemporaryFileInputStream.cpp',
     'nsTransportUtils.cpp',
-    'nsUDPServerSocket.cpp',
+    'nsUDPSocket.cpp',
     'nsURIChecker.cpp',
     'nsURLHelper.cpp',
     'nsURLParsers.cpp',
