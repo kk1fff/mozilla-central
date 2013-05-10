@@ -92,6 +92,7 @@
 #include "mozilla/dom/network/TCPSocketChild.h"
 #include "mozilla/dom/network/TCPSocketParent.h"
 #include "mozilla/dom/network/TCPServerSocketChild.h"
+#include "mozilla/dom/network/UDPSocketChild.h"
 #include "mozilla/dom/quota/QuotaManager.h"
 #include "mozilla/OSFileConstants.h"
 #include "mozilla/Services.h"
@@ -250,6 +251,7 @@ using mozilla::dom::quota::QuotaManager;
 using mozilla::dom::TCPSocketChild;
 using mozilla::dom::TCPSocketParent;
 using mozilla::dom::TCPServerSocketChild;
+using mozilla::dom::UDPSocketChild;
 using mozilla::dom::time::TimeService;
 
 // Transformiix
@@ -641,6 +643,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(OSFileConstantsService)
 NS_GENERIC_FACTORY_CONSTRUCTOR(TCPSocketChild)
 NS_GENERIC_FACTORY_CONSTRUCTOR(TCPSocketParent)
 NS_GENERIC_FACTORY_CONSTRUCTOR(TCPServerSocketChild)
+NS_GENERIC_FACTORY_CONSTRUCTOR(UDPSocketChild)
 
 #ifdef ACCESSIBILITY
 #include "nsAccessibilityService.h"
@@ -803,6 +806,7 @@ NS_DEFINE_NAMED_CID(NS_ALARMHALSERVICE_CID);
 NS_DEFINE_NAMED_CID(TCPSOCKETCHILD_CID);
 NS_DEFINE_NAMED_CID(TCPSOCKETPARENT_CID);
 NS_DEFINE_NAMED_CID(TCPSERVERSOCKETCHILD_CID);
+NS_DEFINE_NAMED_CID(UDPSOCKETCHILD_CID);
 NS_DEFINE_NAMED_CID(NS_TIMESERVICE_CID);
 #ifdef MOZ_WIDGET_GONK
 NS_DEFINE_NAMED_CID(GONK_GPS_GEOLOCATION_PROVIDER_CID);
@@ -1092,6 +1096,7 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kTCPSOCKETCHILD_CID, false, NULL, TCPSocketChildConstructor },
   { &kTCPSOCKETPARENT_CID, false, NULL, TCPSocketParentConstructor },
   { &kTCPSERVERSOCKETCHILD_CID, false, NULL, TCPServerSocketChildConstructor },
+  { &kUDPSOCKETCHILD_CID, false, NULL, UDPSocketChildConstructor },
   { &kNS_TIMESERVICE_CID, false, NULL, nsITimeServiceConstructor },
 #ifdef MOZ_WIDGET_GONK
   { &kGONK_GPS_GEOLOCATION_PROVIDER_CID, false, NULL, nsIGeolocationProviderConstructor },
@@ -1248,6 +1253,7 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { "@mozilla.org/tcp-socket-child;1", &kTCPSOCKETCHILD_CID },
   { "@mozilla.org/tcp-socket-parent;1", &kTCPSOCKETPARENT_CID },
   { "@mozilla.org/tcp-server-socket-child;1", &kTCPSERVERSOCKETCHILD_CID },
+  { "@mozilla.org/udp-socket-child;1", &kUDPSOCKETCHILD_CID },
   { TIMESERVICE_CONTRACTID, &kNS_TIMESERVICE_CID },
 #ifdef MOZ_WIDGET_GONK
   { GONK_GPS_GEOLOCATION_PROVIDER_CONTRACTID, &kGONK_GPS_GEOLOCATION_PROVIDER_CID },
