@@ -11,6 +11,8 @@ EXPORTS.mozilla.dom.network += [
     'TCPSocketChild.h',
     'TCPSocketParent.h',
     'Types.h',
+    'UDPSocketChild.h',
+    'UDPSocketParent.h',
 ]
 
 CPP_SOURCES += [
@@ -19,6 +21,8 @@ CPP_SOURCES += [
     'TCPServerSocketParent.cpp',
     'TCPSocketChild.cpp',
     'TCPSocketParent.cpp',
+    'UDPSocketChild.cpp',
+    'UDPSocketParent.cpp',
 ]
 
 if CONFIG['MOZ_B2G_RIL']:
@@ -51,6 +55,7 @@ if CONFIG['MOZ_B2G_RIL']:
 IPDL_SOURCES += [
     'PTCPServerSocket.ipdl',
     'PTCPSocket.ipdl',
+    'PUDPSocket.ipdl',
 ]
 
 FAIL_ON_WARNINGS = True
