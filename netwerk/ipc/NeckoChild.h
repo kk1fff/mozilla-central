@@ -43,12 +43,15 @@ protected:
   virtual bool DeallocPWebSocketChild(PWebSocketChild*);
   virtual PTCPSocketChild* AllocPTCPSocketChild();
   virtual bool DeallocPTCPSocketChild(PTCPSocketChild*);
+  virtual PRemoteOpenFileChild* AllocPRemoteOpenFileChild(const URIParams&,
+                                                          const OptionalURIParams&);
   virtual PTCPServerSocketChild* AllocPTCPServerSocketChild(const uint16_t& aLocalPort,
                                                        const uint16_t& aBacklog,
                                                        const nsString& aBinaryType);
   virtual bool DeallocPTCPServerSocketChild(PTCPServerSocketChild*);
-  virtual PRemoteOpenFileChild* AllocPRemoteOpenFileChild(const URIParams&,
-                                                          const OptionalURIParams&);
+  virtual PUDPSocketChild* AllocPUDPSocketChild(const nsCString& aHost,
+                                                const uint16_t& aPort);
+  virtual bool DeallocPUDPSocketChild(PUDPSocketChild*);
   virtual bool DeallocPRemoteOpenFileChild(PRemoteOpenFileChild*);
 };
 

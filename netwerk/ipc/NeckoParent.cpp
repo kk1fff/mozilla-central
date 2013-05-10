@@ -17,6 +17,7 @@
 #include "mozilla/dom/TabParent.h"
 #include "mozilla/dom/network/TCPSocketParent.h"
 #include "mozilla/dom/network/TCPServerSocketParent.h"
+#include "mozilla/dom/network/UDPSocketParent.h"
 #include "mozilla/ipc/URIUtils.h"
 #include "mozilla/LoadContext.h"
 #include "mozilla/AppProcessChecker.h"
@@ -32,6 +33,8 @@ using mozilla::net::PTCPSocketParent;
 using mozilla::dom::TCPSocketParent;
 using mozilla::net::PTCPServerSocketParent;
 using mozilla::dom::TCPServerSocketParent;
+using mozilla::net::PUDPSocketParent;
+using mozilla::dom::UDPSocketParent;
 using IPC::SerializedLoadContext;
 
 namespace mozilla {
@@ -344,6 +347,32 @@ NeckoParent::DeallocPTCPServerSocketParent(PTCPServerSocketParent* actor)
 {
   TCPServerSocketParent* p = static_cast<TCPServerSocketParent*>(actor);
    p->ReleaseIPDLReference();
+  return true;
+}
+
+PUDPSocketParent*
+NeckoParent::AllocPUDPSocketParent(const nsCString& aHost,
+                                   const uint16_t& aPort)
+{
+  UDPSocketParent* p = new UDPSocketParent();
+  p->AddRef();
+  return p;
+
+}
+
+bool
+NeckoParent::RecvPUDPSocketConstructor(PUDPSocketParent* aActor,
+                                       const nsCString& aHost,
+                                       const uint16_t& aPort)
+{
+  return static_cast<UDPSocketParent*>(aActor)->Init(aHost, aPort);
+}
+
+bool
+NeckoParent::DeallocPUDPSocketParent(PUDPSocketParent* actor)
+{
+  UDPSocketParent* p = static_cast<UDPSocketParent*>(actor);
+  p->Release();
   return true;
 }
 
