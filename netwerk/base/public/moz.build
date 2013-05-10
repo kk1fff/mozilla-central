@@ -104,7 +104,7 @@ XPIDL_SOURCES += [
     'nsITimedChannel.idl',
     'nsITraceableChannel.idl',
     'nsITransport.idl',
-    'nsIUDPServerSocket.idl',
+    'nsIUDPSocket.idl',
     'nsIURI.idl',
     'nsIURIChecker.idl',
     'nsIURIClassifier.idl',
