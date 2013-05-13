@@ -263,6 +263,20 @@ bool OmxDecoder::Init() {
                                    nullptr,
                                    flags,
                                    mNativeWindowClient);
+
+    if (videoSource == nullptr) {
+      // Try software codec if we are not able to create video source with
+      // hardware codec.
+      flags = kSoftwareCodecsOnly;
+      videoSource = OMXCodec::Create(omx,
+                                     videoTrack->getFormat(),
+                                     false, // decoder
+                                     videoTrack,
+                                     nullptr,
+                                     flags,
+                                     mNativeWindowClient);
+    }
+
     if (videoSource == nullptr) {
       NS_WARNING("Couldn't create OMX video source");
       return false;
