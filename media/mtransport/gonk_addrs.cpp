@@ -106,8 +106,8 @@ nr_stun_get_addrs(nr_transport_addr aAddrs[], int aMaxAddrs, int aDropLoopback, 
   nr_stun_remove_duplicate_addrs(aAddrs, aDropLoopback, aCount);
 
   for (int i = 0; i < *aCount; ++i) {
-    r_log(NR_LOG_STUN, LOG_DEBUG, "Address %d: %s on %s", i,
-          aAddrs[i].as_string, aAddrs[i].ifname);
+    printf_stderr("Address %d: %s on %s", i,
+                  aAddrs[i].as_string, aAddrs[i].ifname);
   }
 
   return 0;
