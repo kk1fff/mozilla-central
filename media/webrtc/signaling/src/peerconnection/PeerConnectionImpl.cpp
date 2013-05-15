@@ -502,6 +502,16 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
                                JSContext* aCx)
 {
   nsresult res;
+#ifdef MOZILLA_INTERNAL_API
+  // This code interferes with the C++ unit test startup code.
+  nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
+  NS_ENSURE_SUCCESS(res, res);
+  // Currently no standalone unit tests for DataChannel,
+  // which is the user of mWindow
+  MOZ_ASSERT(aWindow);
+  mWindow = do_QueryInterface(aWindow);
+  NS_ENSURE_STATE(mWindow);
+#endif
 
   // Generate a random handle
   unsigned char handle_bin[8];
@@ -539,17 +549,6 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
 
   mSTSThread = do_GetService(NS_SOCKETTRANSPORTSERVICE_CONTRACTID, &res);
   MOZ_ASSERT(mSTSThread);
-
-#ifdef MOZILLA_INTERNAL_API
-  // This code interferes with the C++ unit test startup code.
-  nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
-  NS_ENSURE_SUCCESS(res, res);
-  // Currently no standalone unit tests for DataChannel,
-  // which is the user of mWindow
-  MOZ_ASSERT(aWindow);
-  mWindow = do_QueryInterface(aWindow);
-  NS_ENSURE_STATE(mWindow);
-#endif
 
   res = PeerConnectionCtx::InitializeGlobal(mThread);
   NS_ENSURE_SUCCESS(res, res);

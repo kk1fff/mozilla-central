@@ -266,7 +266,7 @@ bool EnsureNSSInitialized(EnsureNSSOperator op)
 
   if (GeckoProcessType_Default != XRE_GetProcessType())
   {
-    if (op == nssEnsureOnChromeOnly)
+    // if (op == nssEnsureOnChromeOnly)
     {
       // If the component needs PSM/NSS initialized only on the chrome process,
       // pretend we successfully initiated it but in reality we bypass it.
