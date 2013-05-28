@@ -14,6 +14,7 @@
 #include "nsTArrayHelpers.h"
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/mobilemessage/SmsTypes.h"
+#include "nsDOMFile.h"
 
 using namespace mozilla::dom::mobilemessage;
 
@@ -308,6 +309,15 @@ MmsMessage::GetData(ContentParent* aParent,
     const MmsAttachment &element = mAttachments[i];
     mma.id().Assign(element.id);
     mma.location().Assign(element.location);
+
+    // This is a workaround. Sometimes the blob we get from database don't
+    // have a valid date value, this makes ContentParent send a "Mystery Blob"
+    // to content. Getting data of blob can make its date set. We don't care
+    // the return value and error code, we just want to call that.
+    uint64_t date;
+    nsDOMFileBase* blob = static_cast<nsDOMFileBase*>(element.content.get());
+    blob->GetMozLastModifiedDate(&date);
+
     mma.contentParent() = aParent->GetOrCreateActorForBlob(element.content);
     if (!mma.contentParent()) {
       return false;
