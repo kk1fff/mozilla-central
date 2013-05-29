@@ -60,7 +60,11 @@ static char *RCSSTRING __UNUSED__="$Id: addrs.c,v 1.2 2008/04/28 18:21:30 ekr Ex
 #include <net/if_types.h>
 #include <sys/sockio.h>
 #else
+#include <linux/sockios.h>
 #include <linux/if.h>
+#include <linux/kernel.h>
+#include <linux/wireless.h>
+#include <linux/ethtool.h>
 #endif
 #include <net/route.h>
 
@@ -120,7 +124,7 @@ static int stun_grab_addrs(char *name, int addrcount,
                struct ifa_msghdr *ifam,
                nr_transport_addr addrs[], int maxaddrs, int *count);
 static int
-nr_stun_is_duplicate_addr(nr_transport_addr addrs[], int count, nr_transport_addr *addr);
+nr_stun_is_duplicate_addr(nr_local_addr addrs[], int count, nr_local_addr *addr);
 
 
 /*
@@ -149,7 +153,7 @@ stun_rt_xaddrs(cp, cplim, rtinfo)
 }
 
 static int
-stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     int s = -1;
@@ -175,10 +179,10 @@ stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_transport
         case AF_INET:
             sin = (struct sockaddr_in *)info.rti_info[RTAX_IFA];
 
-            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sin, sizeof(*sin), IPPROTO_UDP, 0, &(addrs[*count]))))
+            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sin, sizeof(*sin), IPPROTO_UDP, 0, &(addrs[*count].addr))))
                 ABORT(r);
 
-            strlcpy(addrs[*count].ifname, name, sizeof(addrs[*count].ifname));
+            strlcpy(addrs[*count].addr.ifname, name, sizeof(addrs[*count].addr.ifname));
 
             ++*count;
             break;
@@ -204,7 +208,7 @@ stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_transport
 }
 
 static int
-stun_get_mib_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_mib_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int _status;
     char name[32];
@@ -351,7 +355,7 @@ abort:
 
 
 static int
-stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_win32_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     PIP_ADAPTER_INFO pAdapterInfo;
@@ -428,18 +432,19 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
         r_log(NR_LOG_STUN, LOG_INFO, "Adapter %s address: %s", munged_ifname, pAddrString->IpAddress.String);
 
-        addrs[n].ip_version=NR_IPV4;
-        addrs[n].protocol = IPPROTO_UDP;
+        addrs[n].addr.ip_version=NR_IPV4;
+        addrs[n].addr.protocol = IPPROTO_UDP;
 
-        addrs[n].u.addr4.sin_family=PF_INET;
-        addrs[n].u.addr4.sin_port=0;
-        addrs[n].u.addr4.sin_addr.s_addr=this_addr;
-        addrs[n].addr=(struct sockaddr *)&(addrs[n].u.addr4);
-        addrs[n].addr_len=sizeof(struct sockaddr_in);
+        addrs[n].addr.u.addr4.sin_family=PF_INET;
+        addrs[n].addr.u.addr4.sin_port=0;
+        addrs[n].addr.u.addr4.sin_addr.s_addr=this_addr;
+        addrs[n].addr.addr=(struct sockaddr *)&(addrs[n].u.addr4);
+        addrs[n].addr.addr_len=sizeof(struct sockaddr_in);
 
-        strlcpy(addrs[n].ifname, munged_ifname, sizeof(addrs[n].ifname));
-        snprintf(addrs[n].as_string,40,"IP4:%s:%d",inet_ntoa(addrs[n].u.addr4.sin_addr),
-                 ntohs(addrs[n].u.addr4.sin_port));
+        strlcpy(addrs[n].addr.ifname, munged_ifname, sizeof(addrs[n].addr.ifname));
+        snprintf(addrs[n].addr.as_string,40,"IP4:%s:%d",
+                 inet_ntoa(addrs[n].addr.u.addr4.sin_addr),
+                 ntohs(addrs[n].addr.u.addr4.sin_port));
 
         if (++n >= maxaddrs)
           goto done;
@@ -463,7 +468,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
     * isn't supported on Win2000.
     */
 static int
-stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_win32_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     PIP_ADAPTER_ADDRESSES AdapterAddresses = NULL, tmpAddress = NULL;
@@ -529,7 +534,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
           if ((sa_addr->lpSockaddr->sa_family == AF_INET) ||
               (sa_addr->lpSockaddr->sa_family == AF_INET6)) {
-            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sa_addr->lpSockaddr, sizeof(*sa_addr->lpSockaddr), IPPROTO_UDP, 0, &(addrs[n]))))
+            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sa_addr->lpSockaddr, sizeof(*sa_addr->lpSockaddr), IPPROTO_UDP, 0, &(addrs[n].addr))))
                 ABORT(r);
           }
           else {
@@ -537,7 +542,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
             continue;
           }
 
-          strlcpy(addrs[n].ifname, munged_ifname, sizeof(addrs[n].ifname));
+          strlcpy(addrs[n].addr.ifname, munged_ifname, sizeof(addrs[n].addr.ifname));
           if (++n >= maxaddrs)
             goto done;
         }
@@ -557,7 +562,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 #elif defined(__sparc__)
 
 static int
-stun_get_sparc_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_sparc_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     *count = 0;
     UNIMPLEMENTED; /*TODO !nn! - sparc */
@@ -567,7 +572,7 @@ stun_get_sparc_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 #else
 
 static int
-stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_siocgifconf_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
    struct ifconf ifc;
    int _status;
@@ -596,6 +601,9 @@ stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
 #ifdef LINUX
       int si = sizeof(struct ifreq);
+      struct ethtool_cmd ecmd;
+      struct ethtool_drvinfo drvinfo;
+      struct iwreq wrq;
 #else
       int si = sizeof(ifr->ifr_name) + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr));
 #endif
@@ -612,11 +620,48 @@ stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
       //r_log(NR_LOG_STUN, LOG_ERR, "ioctl addr e = %d",e);
 
-      if ((r=nr_sockaddr_to_transport_addr(&ifr2.ifr_addr, sizeof(ifr2.ifr_addr), IPPROTO_UDP, 0, &(addrs[n])))) {
+      if ((r=nr_sockaddr_to_transport_addr(&ifr2.ifr_addr, sizeof(ifr2.ifr_addr), IPPROTO_UDP, 0, &(addrs[n].addr)))) {
           r_log(NR_LOG_STUN, LOG_WARNING, "Problem transforming address");
       }
       else {
-          strlcpy(addrs[n].ifname, ifr->ifr_name, sizeof(addrs[n].ifname));
+#ifdef LINUX
+          /* Getting ethtool for ethernet information. */
+          ecmd.cmd = ETHTOOL_GSET;
+          ifr2.ifr_data = (void*)&ecmd;
+          e = ioctl(s, SIOCETHTOOL, &ifr2);
+          if (e == 0)
+          {
+             /* For wireless network, we won't get ethtool, it's a wired
+                connection */
+             addrs[n].interface.type = NR_INTERFACE_TYPE_WIRED;
+             addrs[n].interface.estimated_speed = ((ecmd.speed_hi << 16) | ecmd.speed) * 1000;
+          }
+
+          strncpy(wrq.ifr_name, ifr->ifr_name, sizeof(wrq.ifr_name));
+          e = ioctl(s, SIOCGIWRATE, &wrq);
+          if (e == 0)
+          {
+             addrs[n].interface.type = NR_INTERFACE_TYPE_WIFI;
+             addrs[n].interface.estimated_speed = wrq.u.bitrate.value / 1000;
+          }
+
+          drvinfo.cmd = ETHTOOL_GDRVINFO;
+          ifr2.ifr_data = (void*)&drvinfo;
+          e = ioctl(s, SIOCETHTOOL, &ifr2);
+          if (e == 0)
+          {
+             /* For VPN connection, we can get its driver info and its driver
+                will be tun */
+             if (strcmp(drvinfo.driver, "tun") == 0)
+             {
+                addrs[n].interface.type = NR_INTERFACE_TYPE_VPN;
+                /* TODO: find backend network type of this VPN */
+             }
+          }
+#else
+          /* TODO: interface property for non-linux system */
+#endif
+          strlcpy(addrs[n].addr.ifname, ifr->ifr_name, sizeof(addrs[n].addr.ifname));
           ++n;
       }
    }
@@ -631,13 +676,14 @@ stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 #endif
 
 static int
-nr_stun_is_duplicate_addr(nr_transport_addr addrs[], int count, nr_transport_addr *addr)
+nr_stun_is_duplicate_addr(nr_local_addr addrs[], int count, nr_local_addr *addr)
 {
     int i;
     int different;
 
     for (i = 0; i < count; ++i) {
-        different = nr_transport_addr_cmp(&addrs[i], addr, NR_TRANSPORT_ADDR_CMP_MODE_ALL);
+        different = nr_transport_addr_cmp(&addrs[i].addr, &(addr->addr),
+          NR_TRANSPORT_ADDR_CMP_MODE_ALL);
         if (!different)
             return 1;  /* duplicate */
     }
@@ -646,10 +692,10 @@ nr_stun_is_duplicate_addr(nr_transport_addr addrs[], int count, nr_transport_add
 }
 
 int
-nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, int *count)
+nr_stun_remove_duplicate_addrs(nr_local_addr addrs[], int remove_loopback, int *count)
 {
     int r, _status;
-    nr_transport_addr *tmp = 0;
+    nr_local_addr *tmp = 0;
     int i;
     int n;
 
@@ -662,12 +708,12 @@ nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, i
         if (nr_stun_is_duplicate_addr(tmp, n, &addrs[i])) {
             /* skip addrs[i], it's a duplicate */
         }
-        else if (remove_loopback && nr_transport_addr_is_loopback(&addrs[i])) {
+        else if (remove_loopback && nr_transport_addr_is_loopback(&addrs[i].addr)) {
             /* skip addrs[i], it's a loopback */
         }
         else {
             /* otherwise, copy it to the temporary array */
-            if ((r=nr_transport_addr_copy(&tmp[n], &addrs[i])))
+            if ((r=nr_local_addr_copy(&tmp[n], &addrs[i])))
                 ABORT(r);
             ++n;
         }
@@ -677,7 +723,7 @@ nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, i
 
     /* copy temporary array into passed in/out array */
     for (i = 0; i < *count; ++i) {
-        if ((r=nr_transport_addr_copy(&addrs[i], &tmp[i])))
+        if ((r=nr_local_addr_copy(&addrs[i], &tmp[i])))
             ABORT(r);
     }
 
@@ -690,7 +736,7 @@ nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, i
 #ifndef USE_PLATFORM_NR_STUN_GET_ADDRS
 
 int
-nr_stun_get_addrs(nr_transport_addr addrs[], int maxaddrs, int drop_loopback, int *count)
+nr_stun_get_addrs(nr_local_addr addrs[], int maxaddrs, int drop_loopback, int *count)
 {
     int _status=0;
     int i;
@@ -708,7 +754,10 @@ nr_stun_get_addrs(nr_transport_addr addrs[], int maxaddrs, int drop_loopback, in
     nr_stun_remove_duplicate_addrs(addrs, drop_loopback, count);
 
     for (i = 0; i < *count; ++i) {
-        r_log(NR_LOG_STUN, LOG_DEBUG, "Address %d: %s on %s", i, addrs[i].as_string, addrs[i].ifname);
+        r_log(NR_LOG_STUN, LOG_DEBUG,
+              "Address %d: %s on %s, type: %d, estimated speed: %d kbps\n",
+              i, addrs[i].addr.as_string, addrs[i].addr.ifname,
+              addrs[i].interface.type, addrs[i].interface.estimated_speed);
     }
 
     return _status;
