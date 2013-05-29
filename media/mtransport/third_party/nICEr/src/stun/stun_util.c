@@ -98,7 +98,7 @@ nr_stun_xor_mapped_address(UINT4 magicCookie, nr_transport_addr *from, nr_transp
 }
 
 int
-nr_stun_find_local_addresses(nr_transport_addr addrs[], int maxaddrs, int *count)
+nr_stun_find_local_addresses(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     NR_registry *children = 0;
