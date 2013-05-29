@@ -1,5 +1,7 @@
 /*
 Copyright (c) 2007, Adobe Systems, Incorporated
+Copyright (c) 2013, Mozilla
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -13,9 +15,10 @@ met:
   notice, this list of conditions and the following disclaimer in the
   documentation and/or other materials provided with the distribution.
 
-* Neither the name of Adobe Systems, Network Resonance nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+* Neither the name of Adobe Systems, Network Resonance, Mozilla nor
+  the names of its contributors may be used to endorse or promote
+  products derived from this software without specific prior written
+  permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -30,27 +33,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-
-#ifndef _stun_util_h
-#define _stun_util_h
-
-#include "stun.h"
+#include <nr_api.h>
 #include "local_addr.h"
 
-extern int NR_LOG_STUN;
-
-int nr_stun_startup(void);
-
-int nr_stun_xor_mapped_address(UINT4 magicCookie, nr_transport_addr *from, nr_transport_addr *to);
-
-int nr_stun_find_local_addresses(nr_local_addr addrs[], int maxaddrs, int *count);
-
-int nr_stun_different_transaction(UCHAR *msg, int len, nr_stun_message *req);
-
-char* nr_stun_msg_type(int type);
-
-int nr_random_alphanum(char *alphanum, int size);
-
-#endif
-
+int nr_local_addr_copy(nr_local_addr *to, nr_local_addr *from)
+  {
+    nr_transport_addr_copy(&(to->addr), &(from->addr));
+    memcpy(&(to->interface), &(from->interface), sizeof(nr_local_addr));
+    return(0);
+  }
