@@ -140,6 +140,8 @@ struct nr_ice_ctx_ {
 
   NR_async_cb done_cb;
   void *cb_arg;
+
+  nr_interface *local_interfaces;                 /* interface information */
 };
 
 int nr_ice_ctx_create(char *label, UINT4 flags, nr_ice_ctx **ctxp);
@@ -161,6 +163,8 @@ int nr_ice_ctx_finalize(nr_ice_ctx *ctx, nr_ice_peer_ctx *pctx);
 int nr_ice_ctx_set_stun_servers(nr_ice_ctx *ctx,nr_ice_stun_server *servers, int ct);
 int nr_ice_ctx_set_turn_servers(nr_ice_ctx *ctx,nr_ice_turn_server *servers, int ct);
 int nr_ice_ctx_set_resolver(nr_ice_ctx *ctx, nr_resolver *resolver);
+/* copy interface parts of local_addrs array into ctx */
+int nr_ice_ctx_set_interfaces(nr_ice_ctx *ctx, nr_local_addr *local_addrs, int len);
 
 extern int LOG_ICE;
 

@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include "transport_addr.h"
+#include "local_addr.h"
 
 #ifdef __cplusplus
 #define restrict
