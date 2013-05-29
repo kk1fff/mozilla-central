@@ -115,7 +115,7 @@ int nr_ice_component_destroy(nr_ice_component **componentp)
 int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *component)
   {
     int r,_status;
-    nr_transport_addr addrs[MAXADDRS];
+    nr_local_addr addrs[MAXADDRS];
     nr_socket *sock;
     nr_ice_socket *isock=0;
     nr_ice_candidate *cand=0;
