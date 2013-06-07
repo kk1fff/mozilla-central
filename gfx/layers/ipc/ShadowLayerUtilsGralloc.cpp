@@ -24,6 +24,7 @@
 #include "gfxPlatform.h"
 
 #include "GeckoProfiler.h"
+#include <android/log.h>
 
 using namespace android;
 using namespace base;
@@ -149,6 +150,7 @@ PixelFormatForImageFormat(gfxASurface::gfxImageFormat aFormat)
 static size_t
 BytesPerPixelForPixelFormat(android::PixelFormat aFormat)
 {
+
   switch (aFormat) {
   case PIXEL_FORMAT_RGBA_8888:
   case PIXEL_FORMAT_RGBX_8888:
@@ -163,7 +165,9 @@ BytesPerPixelForPixelFormat(android::PixelFormat aFormat)
   case PIXEL_FORMAT_A_8:
     return 1;
   default:
-    return 0;
+    __android_log_print(ANDROID_LOG_ERROR, "gecko", "\n\n\n\nBytesPerPixelForPixelFormat %x ", aFormat);
+    //MOZ_NOT_REACHED("Unknown gralloc pixel format");
+    return -1;
   }
   return 0;
 }
@@ -239,7 +243,7 @@ GrallocBufferActor::Create(const gfxIntSize& aSize,
     return actor;
 
   size_t bpp = BytesPerPixelForPixelFormat(format);
-  actor->mAllocBytes = aSize.width * aSize.height * bpp;
+  actor->mAllocBytes = aSize.width * aSize.height * (bpp == -1 ? 1.5 : bpp);
   sCurrentAlloc += actor->mAllocBytes;
 
   actor->mGraphicBuffer = buffer;
