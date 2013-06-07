@@ -3,6 +3,10 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MediaEngineWebRTC.h"
+#ifdef MOZ_WIDGET_GONK
+#include "audio_device.h"
+#include "AudioDeviceGonk.h"
+#endif
 
 #define CHANNELS 1
 #define ENCODING "L16"
@@ -239,7 +243,11 @@ MediaEngineWebRTCAudioSource::Init()
 {
   mVoEBase = webrtc::VoEBase::GetInterface(mVoiceEngine);
 
+#ifdef MOZ_WIDGET_GONK
+  mVoEBase->Init(webrtc::AudioDeviceGonk::Create(0, webrtc::AudioDeviceModule::kPlatformDefaultAudio));
+#else
   mVoEBase->Init();
+#endif
 
   mVoERender = webrtc::VoEExternalMedia::GetInterface(mVoiceEngine);
   if (!mVoERender) {

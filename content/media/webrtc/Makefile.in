@@ -23,7 +23,12 @@ include $(topsrcdir)/ipc/chromium/chromium-config.mk
 
 ifdef MOZ_WEBRTC
 LOCAL_INCLUDES += \
+  -I$(topsrcdir)/xpcom/glue \
+  -I$(topsrcdir)/media/webrtc/trunk \
   -I$(topsrcdir)/media/webrtc/trunk/webrtc \
+  -I$(topsrcdir)/media/webrtc/trunk/webrtc/system_wrappers/interface \
+  -I$(topsrcdir)/media/webrtc/trunk/webrtc/modules/audio_device \
+  -I$(topsrcdir)/media/webrtc/trunk/webrtc/modules/audio_device/include \
   -I$(topsrcdir)/media/webrtc/signaling/src/common \
   -I$(topsrcdir)/media/webrtc/signaling/src/common/browser_logging \
   -I$(topsrcdir)/dom/base \

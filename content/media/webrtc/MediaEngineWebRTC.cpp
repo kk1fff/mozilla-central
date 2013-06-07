@@ -32,6 +32,9 @@ GetUserMediaLog()
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidBridge.h"
 #endif
+#ifdef MOZ_WIDGET_GONK
+#include "AudioDeviceGonk.h"
+#endif
 
 #undef LOG
 #define LOG(args) PR_LOG(GetUserMediaLog(), PR_LOG_DEBUG, args)
@@ -254,7 +257,11 @@ MediaEngineWebRTC::EnumerateAudioDevices(nsTArray<nsRefPtr<MediaEngineAudioSourc
   }
 
   if (!mAudioEngineInit) {
+#ifndef MOZ_WIDGET_GONK
     if (ptrVoEBase->Init() < 0) {
+#else
+    if (ptrVoEBase->Init(webrtc::AudioDeviceGonk::Create(0, webrtc::AudioDeviceModule::kPlatformDefaultAudio)) < 0) {
+#endif
       return;
     }
     mAudioEngineInit = true;
