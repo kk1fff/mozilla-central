@@ -3229,8 +3229,8 @@ gsmsdp_negotiate_codec (fsmdef_dcb_t *dcb_p, cc_sdp_t *sdp_p,
                        if present */
                     switch (codec) {
                         case RTP_VP8:
-                            payload_info->video.width = 640;
-                            payload_info->video.height = 480;
+                            payload_info->video.width = 176;
+                            payload_info->video.height = 144;
                         break;
                         case RTP_I420:
                             payload_info->video.width = 176;

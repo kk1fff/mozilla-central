@@ -157,8 +157,8 @@ void
 MediaEngineWebRTCVideoSource::ChooseCapability(const MediaEnginePrefs &aPrefs)
 {
 #ifdef MOZ_B2G_CAMERA
-  mCapability.width  = aPrefs.mWidth;
-  mCapability.height = aPrefs.mHeight;
+  mCapability.width  = 176;//aPrefs.mWidth;
+  mCapability.height = 144;//aPrefs.mHeight;
 #else
   int num = mViECapture->NumberOfCapabilities(mUniqueId, KMaxUniqueIdLength);
 

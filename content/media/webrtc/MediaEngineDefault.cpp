@@ -61,6 +61,8 @@ MediaEngineDefaultVideoSource::Allocate(const MediaEnginePrefs &aPrefs)
   }
 
   mOpts = aPrefs;
+  mOpts.mWidth = 176;
+  mOpts.mHeight = 144;
   mState = kAllocated;
   return NS_OK;
 }

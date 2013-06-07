@@ -1110,7 +1110,7 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
   }
 #endif
   // XXX No full support for picture in Desktop yet (needs proper UI)
-  if (aPrivileged || fake) {
+  if (aPrivileged || fake || 1) { /* For this path, since B2G cannot prompt permission dialog before bug 853356 is landed.*/
     mMediaThread->Dispatch(gUMRunnable, NS_DISPATCH_NORMAL);
   } else {
     // Ask for user permission, and dispatch runnable (or not) when a response

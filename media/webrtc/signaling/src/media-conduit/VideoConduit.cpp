@@ -548,7 +548,8 @@ WebrtcVideoConduit::SendVideoFrame(unsigned char* video_frame,
                                    VideoType video_type,
                                    uint64_t capture_time)
 {
-
+  static int i = 0;
+  if (i++ % 2 != 1) return kMediaConduitNoError;
   CSFLogDebug(logTag,  "%s ", __FUNCTION__);
 
   //check for  the parameters sanity
