@@ -325,8 +325,13 @@ class MediaPipelineTransmit : public MediaPipeline {
         active_(false),
         last_img_(-1),
         samples_10ms_buffer_(nullptr),
-        buffer_current_(0),
-        samplenum_10ms_(0) {}
+        buffer_current_(0), samplenum_10ms_(0)
+    {
+          nsIThread *thread;
+          NS_NewNamedThread("Video Worker", &thread);
+          MOZ_ASSERT(thread);
+          worker_thread_ = thread;
+    }
 
     ~PipelineListener()
     {
@@ -357,8 +362,12 @@ class MediaPipelineTransmit : public MediaPipeline {
     virtual void ProcessAudioChunk(AudioSessionConduit *conduit,
 				   TrackRate rate, AudioChunk& chunk);
 #ifdef MOZILLA_INTERNAL_API
-    virtual void ProcessVideoChunk(VideoSessionConduit *conduit,
-				   TrackRate rate, VideoChunk& chunk);
+        virtual void ProcessVideoChunk(VideoSessionConduit *conduit,
+            TrackRate rate, VideoChunk& chunk);
+    virtual void ProcessVideoChunk_w(
+                 const RefPtr<VideoSessionConduit>& conduit,
+                 TrackRate rate,
+                 layers::Image* image);
 #endif
     RefPtr<MediaSessionConduit> conduit_;
     volatile bool active_;
@@ -373,6 +382,7 @@ class MediaPipelineTransmit : public MediaPipeline {
     int64_t buffer_current_;
     // The number of samples in a 10ms audio chunk.
     int64_t samplenum_10ms_;
+    RefPtr<nsIThread> worker_thread_;
   };
 
  private:

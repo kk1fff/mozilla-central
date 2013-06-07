@@ -834,6 +834,16 @@ void MediaPipelineTransmit::PipelineListener::ProcessVideoChunk(
   }
   last_img_ = serial;
 
+  RUN_ON_THREAD(worker_thread_, WrapRunnable(this,
+        &MediaPipelineTransmit::PipelineListener::ProcessVideoChunk_w,
+        RefPtr<VideoSessionConduit>(conduit), rate, (img)),
+        NS_DISPATCH_NORMAL);
+}
+
+void MediaPipelineTransmit::PipelineListener::ProcessVideoChunk_w(
+     const RefPtr<VideoSessionConduit>& conduit,
+     TrackRate rate,
+     layers::Image* img) {
   ImageFormat format = img->GetFormat();
 #ifdef MOZ_WIDGET_GONK
   if (format == GONK_IO_SURFACE) {
@@ -856,7 +866,7 @@ void MediaPipelineTransmit::PipelineListener::ProcessVideoChunk(
     // Cast away constness b/c some of the accessors are non-const
     layers::PlanarYCbCrImage* yuv =
     const_cast<layers::PlanarYCbCrImage *>(
-          static_cast<const layers::PlanarYCbCrImage *>(img));
+              static_cast<const layers::PlanarYCbCrImage *>(img));
     // Big-time assumption here that this is all contiguous data coming
     // from getUserMedia or other sources.
     const layers::PlanarYCbCrImage::Data *data = yuv->GetData();
