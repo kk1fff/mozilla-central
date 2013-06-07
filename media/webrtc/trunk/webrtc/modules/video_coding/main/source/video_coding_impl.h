@@ -37,7 +37,7 @@ public:
           _periodMs(periodMs),
           _latestMs(_clock->MillisecondTimestamp()) {}
     WebRtc_UWord32 Period() const;
-    WebRtc_UWord32 TimeUntilProcess() const;
+    WebRtc_UWord32 TimeUntilProcess(WebRtc_UWord64 now = 0) const;
     void Processed();
 
 private:

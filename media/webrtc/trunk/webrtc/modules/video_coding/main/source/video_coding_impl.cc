@@ -30,11 +30,17 @@ VCMProcessTimer::Period() const
 }
 
 WebRtc_UWord32
-VCMProcessTimer::TimeUntilProcess() const
+VCMProcessTimer::TimeUntilProcess(WebRtc_UWord64 now) const
 {
+    if (now == 0) {
+      now = _clock->MillisecondTimestamp();
+    }
+#ifdef DEBUG
+    assert(now - _latestMs >= 0);
+#endif
     return static_cast<WebRtc_UWord32>(
         VCM_MAX(static_cast<WebRtc_Word64>(_periodMs) -
-                (_clock->MillisecondTimestamp() - _latestMs), 0));
+                static_cast<WebRtc_Word64>(now - _latestMs), 0));
 }
 
 void
@@ -136,8 +142,10 @@ VideoCodingModuleImpl::Process()
 {
     WebRtc_Word32 returnValue = VCM_OK;
 
+    WebRtc_UWord64 now = clock_->MillisecondTimestamp();
+
     // Receive-side statistics
-    if (_receiveStatsTimer.TimeUntilProcess() == 0)
+    if (_receiveStatsTimer.TimeUntilProcess(now) == 0)
     {
         _receiveStatsTimer.Processed();
         if (_receiveStatsCallback != NULL)
@@ -150,7 +158,7 @@ VideoCodingModuleImpl::Process()
     }
 
     // Send-side statistics
-    if (_sendStatsTimer.TimeUntilProcess() == 0)
+    if (_sendStatsTimer.TimeUntilProcess(now) == 0)
     {
         _sendStatsTimer.Processed();
         if (_sendStatsCallback != NULL)
@@ -169,7 +177,7 @@ VideoCodingModuleImpl::Process()
     }
 
     // Packet retransmission requests
-    if (_retransmissionTimer.TimeUntilProcess() == 0)
+    if (_retransmissionTimer.TimeUntilProcess(now) == 0)
     {
         _retransmissionTimer.Processed();
         if (_packetRequestCallback != NULL)
@@ -189,7 +197,7 @@ VideoCodingModuleImpl::Process()
     }
 
     // Key frame requests
-    if (_keyRequestTimer.TimeUntilProcess() == 0)
+    if (_keyRequestTimer.TimeUntilProcess(now) == 0)
     {
         _keyRequestTimer.Processed();
         if (_scheduleKeyRequest && _frameTypeCallback != NULL)
@@ -201,7 +209,6 @@ VideoCodingModuleImpl::Process()
             }
         }
     }
-
     return returnValue;
 }
 
@@ -232,19 +239,20 @@ VideoCodingModuleImpl::ChangeUniqueId(const WebRtc_Word32 id)
 WebRtc_Word32
 VideoCodingModuleImpl::TimeUntilNextProcess()
 {
+    WebRtc_UWord64 now = clock_->MillisecondTimestamp();
     WebRtc_UWord32 timeUntilNextProcess = VCM_MIN(
-                                    _receiveStatsTimer.TimeUntilProcess(),
-                                    _sendStatsTimer.TimeUntilProcess());
+                                    _receiveStatsTimer.TimeUntilProcess(now),
+                                    _sendStatsTimer.TimeUntilProcess(now));
     if ((_receiver.NackMode() != kNoNack) ||
         (_dualReceiver.State() != kPassive))
     {
         // We need a Process call more often if we are relying on
         // retransmissions
         timeUntilNextProcess = VCM_MIN(timeUntilNextProcess,
-                                       _retransmissionTimer.TimeUntilProcess());
+                                       _retransmissionTimer.TimeUntilProcess(now));
     }
     timeUntilNextProcess = VCM_MIN(timeUntilNextProcess,
-                                   _keyRequestTimer.TimeUntilProcess());
+                                   _keyRequestTimer.TimeUntilProcess(now));
 
     return timeUntilNextProcess;
 }
