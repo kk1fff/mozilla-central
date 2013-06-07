@@ -57,7 +57,7 @@ using namespace android;
  * still returns the frame data in 'yuv420sp' anyway.  So for now, since
  * everyone seems to return this format, we just force it.
  */
-#define FORCE_PREVIEW_FORMAT_YUV420SP   1
+#define FORCE_PREVIEW_FORMAT_YUV420SP   0
 
 #define RETURN_IF_NO_CAMERA_HW()                                          \
   do {                                                                    \

@@ -574,6 +574,8 @@ WebrtcVideoConduit::SendVideoFrame(unsigned char* video_frame,
       MOZ_ASSERT(PR_FALSE);
       return kMediaConduitMalformedArgument;
   }
+
+  type = webrtc::kVideoI420;
   //Transmission should be enabled before we insert any frames.
   if(!mEngineTransmitting)
   {
