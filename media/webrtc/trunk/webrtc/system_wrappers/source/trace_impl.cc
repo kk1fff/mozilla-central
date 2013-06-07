@@ -567,6 +567,7 @@ void TraceImpl::WriteToFile() {
 void TraceImpl::AddImpl(const TraceLevel level, const TraceModule module,
                         const WebRtc_Word32 id,
                         const char msg[WEBRTC_TRACE_MAX_MESSAGE_SIZE]) {
+  return;
   if (TraceCheck(level)) {
     char trace_message[WEBRTC_TRACE_MAX_MESSAGE_SIZE];
     char* message_ptr = trace_message;

@@ -371,7 +371,7 @@ TransmitMixer::PrepareDemux(const void* audioSamples,
     }
 
     // --- Near-end Voice Quality Enhancement (APM) processing
-    APMProcessStream(totalDelayMS, clockDrift, currentMicLevel);
+    //APMProcessStream(totalDelayMS, clockDrift, currentMicLevel);
 
     if (swap_stereo_channels_ && stereo_codec_)
       // Only bother swapping if we're using a stereo codec.

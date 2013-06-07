@@ -160,6 +160,7 @@ bool ProcessThreadImpl::Process()
 
     if(minTimeToNext > 0)
     {
+        minTimeToNext = 100;
         if(kEventError == _timeEvent.Wait(minTimeToNext))
         {
             return true;

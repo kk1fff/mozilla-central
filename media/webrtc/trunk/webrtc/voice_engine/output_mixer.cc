@@ -571,7 +571,7 @@ OutputMixer::DoOperationsOnCombinedSignal()
 
     // --- Far-end Voice Quality Enhancement (AudioProcessing Module)
 
-    APMAnalyzeReverseStream();
+   // APMAnalyzeReverseStream();
 
     // --- External media processing
 
