@@ -359,8 +359,8 @@ int nr_ice_candidate_compute_priority(nr_ice_candidate *cand)
       r_log(LOG_ICE,LOG_ERR,"Illegal type preference %d",type_preference);
 
 
-    if(r=NR_reg_get2_uchar(NR_ICE_REG_PREF_INTERFACE_PRFX,cand->base.ifname,
-      &interface_preference)) {
+    if(r=nr_interface_priority_get_proirity(cand->ctx->interface_priority,
+       cand->base.as_string,&interface_preference)) {
       if (r==R_NOT_FOUND) {
         if (next_automatic_preference == 1) {
           r_log(LOG_ICE,LOG_DEBUG,"Out of preference values. Can't assign one for interface %s",cand->base.ifname);

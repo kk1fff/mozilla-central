@@ -68,6 +68,7 @@ MTRANSPORT_LCPPSRCS = \
   nricemediastream.cpp \
   nriceresolverfake.cpp \
   nriceresolver.cpp \
+  nrinterfacepriority.cpp \
   nr_socket_prsock.cpp \
   nr_timer.cpp \
   transportflow.cpp \
