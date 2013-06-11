@@ -152,6 +152,7 @@ int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *compon
 
 
       r_log(LOG_ICE,LOG_DEBUG,"ICE(%s): host address %s",ctx->label,addrs[i].as_string);
+      nr_interface_priority_add_interface(ctx->interface_priority,addrs + i);
       if(r=nr_socket_local_create(&addrs[i],&sock)){
         r_log(LOG_ICE,LOG_DEBUG,"ICE(%s): couldn't create socket for address %s",ctx->label,addrs[i].as_string);
         continue;

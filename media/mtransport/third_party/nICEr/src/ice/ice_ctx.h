@@ -124,6 +124,7 @@ struct nr_ice_ctx_ {
   int turn_server_ct;
 
   nr_resolver *resolver;                      /* The resolver to use */
+  nr_interface_priority *interface_priority;  /* Priority decision logic */
 
   nr_ice_foundation_head foundations;
 
