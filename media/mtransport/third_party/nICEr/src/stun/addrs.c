@@ -152,7 +152,7 @@ stun_rt_xaddrs(cp, cplim, rtinfo)
 }
 
 static int
-stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     int s = -1;
@@ -178,10 +178,10 @@ stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_transport
         case AF_INET:
             sin = (struct sockaddr_in *)info.rti_info[RTAX_IFA];
 
-            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sin, sizeof(*sin), IPPROTO_UDP, 0, &(addrs[*count]))))
+            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sin, sizeof(*sin), IPPROTO_UDP, 0, &(addrs[*count].addr))))
                 ABORT(r);
 
-            strlcpy(addrs[*count].ifname, name, sizeof(addrs[*count].ifname));
+            strlcpy(addrs[*count].addr.ifname, name, sizeof(addrs[*count].addr.ifname));
 
             ++*count;
             break;
@@ -207,7 +207,7 @@ stun_grab_addrs(char *name, int addrcount, struct ifa_msghdr *ifam, nr_transport
 }
 
 static int
-stun_get_mib_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_mib_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int _status;
     char name[32];
@@ -354,7 +354,7 @@ abort:
 
 
 static int
-stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_win32_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     PIP_ADAPTER_INFO pAdapterInfo;
@@ -431,18 +431,19 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
         r_log(NR_LOG_STUN, LOG_INFO, "Adapter %s address: %s", munged_ifname, pAddrString->IpAddress.String);
 
-        addrs[n].ip_version=NR_IPV4;
-        addrs[n].protocol = IPPROTO_UDP;
+        addrs[n].addr.ip_version=NR_IPV4;
+        addrs[n].addr.protocol = IPPROTO_UDP;
 
-        addrs[n].u.addr4.sin_family=PF_INET;
-        addrs[n].u.addr4.sin_port=0;
-        addrs[n].u.addr4.sin_addr.s_addr=this_addr;
-        addrs[n].addr=(struct sockaddr *)&(addrs[n].u.addr4);
-        addrs[n].addr_len=sizeof(struct sockaddr_in);
+        addrs[n].addr.u.addr4.sin_family=PF_INET;
+        addrs[n].addr.u.addr4.sin_port=0;
+        addrs[n].addr.u.addr4.sin_addr.s_addr=this_addr;
+        addrs[n].addr.addr=(struct sockaddr *)&(addrs[n].u.addr4);
+        addrs[n].addr.addr_len=sizeof(struct sockaddr_in);
 
-        strlcpy(addrs[n].ifname, munged_ifname, sizeof(addrs[n].ifname));
-        snprintf(addrs[n].as_string,40,"IP4:%s:%d",inet_ntoa(addrs[n].u.addr4.sin_addr),
-                 ntohs(addrs[n].u.addr4.sin_port));
+        strlcpy(addrs[n].addr.ifname, munged_ifname, sizeof(addrs[n].addr.ifname));
+        snprintf(addrs[n].addr.as_string,40,"IP4:%s:%d",
+                 inet_ntoa(addrs[n].addr.u.addr4.sin_addr),
+                 ntohs(addrs[n].addr.u.addr4.sin_port));
 
         if (++n >= maxaddrs)
           goto done;
@@ -466,7 +467,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
     * isn't supported on Win2000.
     */
 static int
-stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_win32_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     int r,_status;
     PIP_ADAPTER_ADDRESSES AdapterAddresses = NULL, tmpAddress = NULL;
@@ -532,7 +533,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
           if ((sa_addr->lpSockaddr->sa_family == AF_INET) ||
               (sa_addr->lpSockaddr->sa_family == AF_INET6)) {
-            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sa_addr->lpSockaddr, sizeof(*sa_addr->lpSockaddr), IPPROTO_UDP, 0, &(addrs[n]))))
+            if ((r=nr_sockaddr_to_transport_addr((struct sockaddr*)sa_addr->lpSockaddr, sizeof(*sa_addr->lpSockaddr), IPPROTO_UDP, 0, &(addrs[n].addr))))
                 ABORT(r);
           }
           else {
@@ -540,7 +541,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
             continue;
           }
 
-          strlcpy(addrs[n].ifname, munged_ifname, sizeof(addrs[n].ifname));
+          strlcpy(addrs[n].addr.ifname, munged_ifname, sizeof(addrs[n].addr.ifname));
           if (++n >= maxaddrs)
             goto done;
         }
@@ -560,7 +561,7 @@ stun_get_win32_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 #elif defined(__sparc__)
 
 static int
-stun_get_sparc_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_sparc_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
     *count = 0;
     UNIMPLEMENTED; /*TODO !nn! - sparc */
@@ -663,7 +664,8 @@ nr_stun_is_duplicate_addr(nr_local_addr addrs[], int count, nr_local_addr *addr)
     int different;
 
     for (i = 0; i < count; ++i) {
-        different = nr_transport_addr_cmp(&addrs[i].addr, addr.addr, NR_TRANSPORT_ADDR_CMP_MODE_ALL);
+        different = nr_transport_addr_cmp(&addrs[i].addr, &(addr->addr),
+          NR_TRANSPORT_ADDR_CMP_MODE_ALL);
         if (!different)
             return 1;  /* duplicate */
     }

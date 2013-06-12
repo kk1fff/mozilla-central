@@ -137,7 +137,7 @@ nr_stun_find_local_addresses(nr_local_addr addrs[], int maxaddrs, int *count)
             ABORT(r);
 
         for (i = 0; i < *count; ++i) {
-            if ((r=nr_reg_get_transport_addr(children[i], 0, &addrs[i])))
+            if ((r=nr_reg_get_transport_addr(children[i], 0, &addrs[i].addr)))
                 ABORT(r);
         }
     }

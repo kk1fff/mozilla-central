@@ -36,6 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _stun_util_h
 
 #include "stun.h"
+#include "local_addr.h"
 
 extern int NR_LOG_STUN;
 
