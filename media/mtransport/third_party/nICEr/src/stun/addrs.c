@@ -61,6 +61,9 @@ static char *RCSSTRING __UNUSED__="$Id: addrs.c,v 1.2 2008/04/28 18:21:30 ekr Ex
 #include <sys/sockio.h>
 #else
 #include <linux/if.h>
+#include <linux/kernel.h>
+#include <linux/wireless.h>
+#include <linux/ethtool.h>
 #endif
 #include <net/route.h>
 
@@ -120,7 +123,7 @@ static int stun_grab_addrs(char *name, int addrcount,
                struct ifa_msghdr *ifam,
                nr_transport_addr addrs[], int maxaddrs, int *count);
 static int
-nr_stun_is_duplicate_addr(nr_transport_addr addrs[], int count, nr_transport_addr *addr);
+nr_stun_is_duplicate_addr(nr_local_addr addrs[], int count, nr_local_addr *addr);
 
 
 /*
@@ -567,7 +570,7 @@ stun_get_sparc_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 #else
 
 static int
-stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
+stun_get_siocgifconf_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
 {
    struct ifconf ifc;
    int _status;
@@ -596,6 +599,8 @@ stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
 #ifdef LINUX
       int si = sizeof(struct ifreq);
+      struct ethtool_cmd ecmd;
+      struct iwreq wrq;
 #else
       int si = sizeof(ifr->ifr_name) + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr));
 #endif
@@ -612,11 +617,32 @@ stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 
       //r_log(NR_LOG_STUN, LOG_ERR, "ioctl addr e = %d",e);
 
-      if ((r=nr_sockaddr_to_transport_addr(&ifr2.ifr_addr, sizeof(ifr2.ifr_addr), IPPROTO_UDP, 0, &(addrs[n])))) {
+      if ((r=nr_sockaddr_to_transport_addr(&ifr2.ifr_addr, sizeof(ifr2.ifr_addr), IPPROTO_UDP, 0, &(addrs[n].addr)))) {
           r_log(NR_LOG_STUN, LOG_WARNING, "Problem transforming address");
       }
       else {
-          strlcpy(addrs[n].ifname, ifr->ifr_name, sizeof(addrs[n].ifname));
+#ifdef LINUX
+          /* Getting ethtool for ethernet information. */
+          ecmd.cmd = ETHTOOL_GSET;
+          ifr2.ifr_data = (void*)&ecmd;
+          e = ioctl(s, SIOCETHTOOL, &ifr2);
+          if (e == 0) {
+             /* For wireless network, we won't get ethtool, it's a wired
+                connection */
+             addrs[n].interface.type = NR_INTERFACE_TYPE_WIRED;
+             addrs[n].interface.estimated_speed = ((ecmd.speed_hi << 16) | ecmd.speed) * 1000;
+          }
+
+          strncpy(wrq.ifr_name, ifr2.ifr_name, sizeof(wrq.ifr_name));
+          e = ioctl(s, SIOCGIWRATE, &wrq);
+          if (e == 0) {
+             addrs[n].interface.type = NR_INTERFACE_TYPE_WIFI;
+             addrs[n].interface.estimated_speed = wrq.u.bitrate.value / 1000;
+          }
+#else
+          /* TODO: interface property for non-linux system */
+#endif
+          strlcpy(addrs[n].addr.ifname, ifr->ifr_name, sizeof(addrs[n].addr.ifname));
           ++n;
       }
    }
@@ -631,13 +657,13 @@ stun_get_siocgifconf_addrs(nr_transport_addr addrs[], int maxaddrs, int *count)
 #endif
 
 static int
-nr_stun_is_duplicate_addr(nr_transport_addr addrs[], int count, nr_transport_addr *addr)
+nr_stun_is_duplicate_addr(nr_local_addr addrs[], int count, nr_local_addr *addr)
 {
     int i;
     int different;
 
     for (i = 0; i < count; ++i) {
-        different = nr_transport_addr_cmp(&addrs[i], addr, NR_TRANSPORT_ADDR_CMP_MODE_ALL);
+        different = nr_transport_addr_cmp(&addrs[i].addr, addr.addr, NR_TRANSPORT_ADDR_CMP_MODE_ALL);
         if (!different)
             return 1;  /* duplicate */
     }
@@ -646,10 +672,10 @@ nr_stun_is_duplicate_addr(nr_transport_addr addrs[], int count, nr_transport_add
 }
 
 int
-nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, int *count)
+nr_stun_remove_duplicate_addrs(nr_local_addr addrs[], int remove_loopback, int *count)
 {
     int r, _status;
-    nr_transport_addr *tmp = 0;
+    nr_local_addr *tmp = 0;
     int i;
     int n;
 
@@ -662,7 +688,7 @@ nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, i
         if (nr_stun_is_duplicate_addr(tmp, n, &addrs[i])) {
             /* skip addrs[i], it's a duplicate */
         }
-        else if (remove_loopback && nr_transport_addr_is_loopback(&addrs[i])) {
+        else if (remove_loopback && nr_transport_addr_is_loopback(&addrs[i].addr)) {
             /* skip addrs[i], it's a loopback */
         }
         else {
@@ -677,7 +703,7 @@ nr_stun_remove_duplicate_addrs(nr_transport_addr addrs[], int remove_loopback, i
 
     /* copy temporary array into passed in/out array */
     for (i = 0; i < *count; ++i) {
-        if ((r=nr_transport_addr_copy(&addrs[i], &tmp[i])))
+        if ((r=nr_local_addr_copy(&addrs[i], &tmp[i])))
             ABORT(r);
     }
 
