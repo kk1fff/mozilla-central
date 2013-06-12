@@ -16,4 +16,6 @@ typedef struct nr_local_addr_ {
   nr_interface interface;
 } nr_local_addr;
 
+int nr_local_addr_copy(nr_local_addr *to, nr_local_addr *from);
+
 #endif
