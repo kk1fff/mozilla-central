@@ -1,6 +1,8 @@
 #ifndef _local_addr_h
 #define _local_addr_h
 
+#include "transport_addr.h"
+
 typedef struct nr_interface_ {
   int type;
 #define NR_INTERFACE_TYPE_UNKNOWN 0x0
