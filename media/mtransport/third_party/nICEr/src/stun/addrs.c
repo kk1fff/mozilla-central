@@ -60,6 +60,7 @@ static char *RCSSTRING __UNUSED__="$Id: addrs.c,v 1.2 2008/04/28 18:21:30 ekr Ex
 #include <net/if_types.h>
 #include <sys/sockio.h>
 #else
+#include <linux/sockios.h>
 #include <linux/if.h>
 #include <linux/kernel.h>
 #include <linux/wireless.h>
@@ -634,7 +635,7 @@ stun_get_siocgifconf_addrs(nr_local_addr addrs[], int maxaddrs, int *count)
              addrs[n].interface.estimated_speed = ((ecmd.speed_hi << 16) | ecmd.speed) * 1000;
           }
 
-          strncpy(wrq.ifr_name, ifr2.ifr_name, sizeof(wrq.ifr_name));
+          strncpy(wrq.ifr_name, ifr->ifr_name, sizeof(wrq.ifr_name));
           e = ioctl(s, SIOCGIWRATE, &wrq);
           if (e == 0) {
              addrs[n].interface.type = NR_INTERFACE_TYPE_WIFI;
@@ -695,7 +696,7 @@ nr_stun_remove_duplicate_addrs(nr_local_addr addrs[], int remove_loopback, int *
         }
         else {
             /* otherwise, copy it to the temporary array */
-            if ((r=nr_transport_addr_copy(&tmp[n], &addrs[i])))
+            if ((r=nr_local_addr_copy(&tmp[n], &addrs[i])))
                 ABORT(r);
             ++n;
         }
@@ -736,7 +737,10 @@ nr_stun_get_addrs(nr_local_addr addrs[], int maxaddrs, int drop_loopback, int *c
     nr_stun_remove_duplicate_addrs(addrs, drop_loopback, count);
 
     for (i = 0; i < *count; ++i) {
-        r_log(NR_LOG_STUN, LOG_DEBUG, "Address %d: %s on %s", i, addrs[i].as_string, addrs[i].ifname);
+        r_log(NR_LOG_STUN, LOG_DEBUG,
+              "Address %d: %s on %s, type: %d, estimated speed: %d kbps\n",
+              i, addrs[i].addr.as_string, addrs[i].addr.ifname,
+              addrs[i].interface.type, addrs[i].interface.estimated_speed);
     }
 
     return _status;
