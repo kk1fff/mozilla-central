@@ -132,6 +132,12 @@ int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *compon
       ABORT(r);
     }
 
+    /* Sort interfaces by preference */
+    for(i=0;i<addr_ct;i++){
+      nr_interface_priority_add_interface(ctx->interface_prioritizer,addrs+i);
+    }
+    nr_interface_priority_sort_preference(ctx->interface_prioritizer);
+
     if(addr_ct==0){
       r_log(LOG_ICE,LOG_ERR,"ICE(%s): no local addresses available",ctx->label);
       ABORT(R_NOT_FOUND);

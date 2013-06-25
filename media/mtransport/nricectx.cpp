@@ -82,6 +82,7 @@ extern "C" {
 #include "nricectx.h"
 #include "nricemediastream.h"
 #include "nr_socket_prsock.h"
+#include "nrinterfacepriority.h"
 
 namespace mozilla {
 
@@ -323,34 +324,6 @@ RefPtr<NrIceCtx> NrIceCtx::Create(const std::string& name,
     NR_reg_set_uchar((char *)"ice.pref.type.prflx",99);
     NR_reg_set_uchar((char *)"ice.pref.type.host",125);
     NR_reg_set_uchar((char *)"ice.pref.type.relayed",126);
-
-    if (set_interface_priorities) {
-      NR_reg_set_uchar((char *)"ice.pref.interface.rl0", 255);
-      NR_reg_set_uchar((char *)"ice.pref.interface.wi0", 254);
-      NR_reg_set_uchar((char *)"ice.pref.interface.lo0", 253);
-      NR_reg_set_uchar((char *)"ice.pref.interface.en1", 252);
-      NR_reg_set_uchar((char *)"ice.pref.interface.en0", 251);
-      NR_reg_set_uchar((char *)"ice.pref.interface.eth0", 252);
-      NR_reg_set_uchar((char *)"ice.pref.interface.eth1", 251);
-      NR_reg_set_uchar((char *)"ice.pref.interface.eth2", 249);
-      NR_reg_set_uchar((char *)"ice.pref.interface.ppp", 250);
-      NR_reg_set_uchar((char *)"ice.pref.interface.ppp0", 249);
-      NR_reg_set_uchar((char *)"ice.pref.interface.en2", 248);
-      NR_reg_set_uchar((char *)"ice.pref.interface.en3", 247);
-      NR_reg_set_uchar((char *)"ice.pref.interface.em0", 251);
-      NR_reg_set_uchar((char *)"ice.pref.interface.em1", 252);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet0", 240);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet1", 241);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet3", 239);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet4", 238);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet5", 237);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet6", 236);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet7", 235);
-      NR_reg_set_uchar((char *)"ice.pref.interface.vmnet8", 234);
-      NR_reg_set_uchar((char *)"ice.pref.interface.virbr0", 233);
-      NR_reg_set_uchar((char *)"ice.pref.interface.wlan0", 232);
-    }
-
     NR_reg_set_uint4((char *)"stun.client.maximum_transmits",4);
   }
 
@@ -365,6 +338,12 @@ RefPtr<NrIceCtx> NrIceCtx::Create(const std::string& name,
                         &ctx->ctx_);
   if (r) {
     MOZ_MTLOG(PR_LOG_ERROR, "Couldn't create ICE ctx for '" << name << "'");
+    return nullptr;
+  }
+
+  r = nr_ice_ctx_set_interface_prioritizer(ctx->ctx_, CreateIntefacePriority());
+  if (r) {
+    MOZ_MTLOG(PR_LOG_ERROR, "Couldn't set interface prioritizer.");
     return nullptr;
   }
 
