@@ -51,7 +51,7 @@ public:
     return mKey;
   }
 
-private:
+  //private:
   // Getting the preferance corresponding to a type. Getting lower number here
   // means the type of network is preferred.
   static inline int GetNetworkTypePreference(int type) {
@@ -81,6 +81,7 @@ public:
   int add(nr_local_addr *aIface) {
     char buf[50];
     nr_transport_addr_fmt_ifname_addr_string(&aIface->addr, buf, 50);
+    fprintf(stderr, "Patrick: key string: \"%s\"\n", buf);
     for (LocalAddrList::const_iterator i = mLocalAddrs.begin();
          i != mLocalAddrs.end(); i++) {
       if (i->GetKey() == buf) {
@@ -89,6 +90,7 @@ public:
       }
     }
     mLocalAddrs.push_back(LocalAddress(aIface));
+    fprintf(stderr, "Patrick: adding interface: %s\n", aIface->addr.as_string);
     return 0;
   }
 
@@ -101,8 +103,11 @@ public:
     int tmpPref = 127;
     for (LocalAddrList::const_iterator i = mLocalAddrs.begin();
          i != mLocalAddrs.end(); i++) {
+      fprintf(stderr, "Patrick: testing: \"%s\"\n", i->GetKey().c_str());
       if (i->GetKey() == key) {
         // Local address with the same key is already in mLocalAddrs.
+        fprintf(stderr, "Patrick: Priority of [%s], type=%d, estimated_speed=%d, is vpn = %d, pref=%d\n",
+                key, i->mTypePreferance, i->mEstimatedSpeed, i->mIsVpn, tmpPref);
         *pref = tmpPref;
         return 0;
       }
