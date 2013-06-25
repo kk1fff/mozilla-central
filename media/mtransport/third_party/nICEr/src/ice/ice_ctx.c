@@ -172,6 +172,21 @@ int nr_ice_ctx_set_resolver(nr_ice_ctx *ctx, nr_resolver *resolver)
   }
 
 
+int nr_ice_ctx_set_interface_priority(nr_ice_ctx *ctx, nr_interface_priority *ip)
+  {
+    int _status;
+
+    if (ctx->interface_priority) {
+      ABORT(R_ALREADY);
+    }
+
+    ctx->interface_priority = ip;
+
+    _status=0;
+   abort:
+    return(_status);
+  }
+
 #ifdef USE_TURN
 int nr_ice_fetch_turn_servers(int ct, nr_ice_turn_server **out)
   {
@@ -374,6 +389,7 @@ static void nr_ice_ctx_destroy_cb(NR_SOCKET s, int how, void *cb_arg)
     }
 
     nr_resolver_destroy(&ctx->resolver);
+    nr_interface_priority_destroy(&ctx->interface_priority);
 
     RFREE(ctx);
   }
