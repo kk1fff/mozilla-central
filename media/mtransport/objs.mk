@@ -28,7 +28,7 @@ LOCAL_INCLUDES += \
   -I$(topsrcdir)/media/mtransport/third_party/nrappkit/src/port/darwin/include \
   -I$(topsrcdir)/media/mtransport/third_party/nrappkit/src/port/generic/include \
   $(NULL)
-DEFINES += -DDARWIN
+DEFINES += -DDARWIN -DUSE_INTERFACE_PRIORITY_FALLBACK
 endif
 
 ifeq ($(OS_TARGET), Linux)
@@ -52,7 +52,7 @@ LOCAL_INCLUDES += \
   -I$(topsrcdir)/media/mtransport/third_party/nrappkit/src/port/win32/include \
   -I$(topsrcdir)/media/mtransport/third_party/nrappkit/src/port/generic/include \
   $(NULL)
-DEFINES += -DWIN
+DEFINES += -DWIN -DUSE_INTERFACE_PRIORITY_FALLBACK
 endif
 
 DEFINES += \
@@ -68,6 +68,7 @@ MTRANSPORT_LCPPSRCS = \
   nricemediastream.cpp \
   nriceresolverfake.cpp \
   nriceresolver.cpp \
+  nrinterfacepriority.cpp \
   nr_socket_prsock.cpp \
   nr_timer.cpp \
   transportflow.cpp \
