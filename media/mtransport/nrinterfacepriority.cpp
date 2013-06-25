@@ -5,6 +5,8 @@
 #include "nrinterfacepriority.h"
 
 #include <stdio.h>
+#include <iostream>
+#include <fstream>
 
 namespace {
 
@@ -95,6 +97,7 @@ public:
   }
 
   int getPreference(const char *key, int *pref) {
+    fprintf(stderr, "Patrick: getting preference of interface, key: %s, current length of mLocalAddrs: %d\n", key, mLocalAddrs.size());
     int tmpPref = 127;
     for (LocalAddrList::const_iterator i = mLocalAddrs.begin();
          i != mLocalAddrs.end(); i++) {
@@ -111,9 +114,76 @@ public:
     return R_NOT_FOUND;
   }
 
+  void dump() {
+    for (LocalAddrList::const_iterator i = mLocalAddrs.begin(); i != mLocalAddrs.end(); i++) {
+      fprintf(stderr, "Patrick: dumping: \"%s\" type=%d, estimated_speed=%d, is vpn = %d\n",
+              i->GetKey().c_str(), i->mTypePreferance, i->mEstimatedSpeed, i->mIsVpn);
+    }
+  }
+
 private:
   LocalAddrList mLocalAddrs;
 };
+
+
+void init_local_addr(nr_local_addr *la, const char *ip, short port, const char *ifname,
+                     int estimatedSpeed, bool isVpn, int type) {
+  la->interface.type = 0;
+  if (isVpn) {
+    la->interface.type |= NR_INTERFACE_TYPE_VPN;
+  }
+  switch (type) {
+  case 1: // ethernet
+    la->interface.type |= NR_INTERFACE_TYPE_WIRED;
+    break;
+  case 2: // wifi
+    la->interface.type |= NR_INTERFACE_TYPE_WIFI;
+    break;
+  case 3: // mobile
+    la->interface.type |= NR_INTERFACE_TYPE_MOBILE;
+    break;
+  default:
+    break;
+  }
+
+  la->interface.estimated_speed = estimatedSpeed;
+
+  struct sockaddr_in addr;
+  inet_aton(ip, &addr.sin_addr);
+  addr.sin_port = 0;
+  addr.sin_family = AF_INET;
+  nr_sockaddr_to_transport_addr((sockaddr*)&addr, sizeof(sockaddr_in), IPPROTO_UDP, 0, &la->addr);
+}
+
+std::string get_key(nr_local_addr *la) {
+  char buf[100];
+  nr_transport_addr_fmt_ifname_addr_string(&la->addr, buf, 100);
+  return buf;
+}
+
+int get_pref(InterfacePrioritizer &ip, nr_local_addr *la) {
+  int pref;
+  ip.getPreference(get_key(la).c_str(), &pref);
+  return pref;
+}
+
+int TestLocalAddr() {
+  InterfacePrioritizer ip;
+  std::ifstream f("/home/patrick/t/iftest");
+  while (!f.eof()) {
+    nr_local_addr la;
+    std::string ipaddr, iname;
+    int port, vpn, speed, type;
+    f >> ipaddr >> port >> iname >> speed >> vpn >> type;
+    init_local_addr(&la, ipaddr.c_str(), port, iname.c_str(), speed, vpn != 0, type);
+    ip.add(&la);
+  }
+  ip.sort();
+  ip.dump();
+  return 0;
+};
+
+static int test = TestLocalAddr();
 
 } // anonymous namespace
 
