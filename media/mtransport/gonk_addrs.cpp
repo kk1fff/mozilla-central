@@ -138,6 +138,7 @@ nr_stun_get_addrs(nr_local_addr aAddrs[], int aMaxAddrs,
   }
 
   for (int i = 0; i < *aCount; ++i) {
+    printf_stderr("Patrick: interface: %s, type: %d, speed: %d", aAddrs[i].addr.ifname, aAddrs[i].interface.type, aAddrs[i].interface.estimated_speed);
     r_log(NR_LOG_STUN, LOG_DEBUG, "Address %d: %s on %s", i,
           aAddrs[i].addr.as_string, aAddrs[i].addr.ifname);
   }
