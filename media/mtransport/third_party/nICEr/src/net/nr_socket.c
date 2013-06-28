@@ -78,6 +78,13 @@ int nr_socket_destroy(nr_socket **sockp)
 int nr_socket_sendto(nr_socket *sock,const void *msg, size_t len, int flags,
   nr_transport_addr *addr)
   {
+    size_t i;
+    printf("Patrick: print sending data\n");
+    for (i = 0; i < len; i++) {
+      printf("%02x ", ((char*)msg)[i]);
+    }
+    printf("\nPatrick: ---------------------------\n");
+
     return sock->vtbl->ssendto(sock->obj,msg,len,flags,addr);
   }
 

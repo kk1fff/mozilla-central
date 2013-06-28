@@ -363,8 +363,10 @@ static int nr_stun_client_send_request(nr_stun_client_ctx *ctx)
     snprintf(string, sizeof(string)-1, "STUN-CLIENT(%s): Sending to %s ", ctx->label, ctx->peer_addr.as_string);
     r_dump(NR_LOG_STUN, LOG_DEBUG, string, (char*)ctx->request->buffer, ctx->request->length);
 
+    printf("Patrick: will send stun request, ctx: %p", ctx);
     if(r=nr_socket_sendto(ctx->sock, ctx->request->buffer, ctx->request->length, 0, &ctx->peer_addr))
       ABORT(r);
+    printf("Patrick: end stun request, ctx: %p", ctx);
 
     ctx->request_ct++;
 
