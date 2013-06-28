@@ -110,6 +110,7 @@ extern "C" {
 #include "async_wait.h"
 #include "nr_socket.h"
 #include "nr_socket_local.h"
+#include "stun.h"
 }
 #include "nr_socket_prsock.h"
 
@@ -504,7 +505,7 @@ static int nr_socket_local_destroy(void **objp) {
 static int nr_socket_local_sendto(void *obj,const void *msg, size_t len,
                                   int flags, nr_transport_addr *addr) {
   NrSocket *sock = static_cast<NrSocket *>(obj);
-
+  printf_stderr("nr_is_stun_message = %d\n", nr_is_stun_message(reinterpret_cast<UCHAR*>(const_cast<void*>(msg)), len));
   return sock->sendto(msg, len, flags, addr);
 }
 
