@@ -38,6 +38,16 @@ static char *RCSSTRING __UNUSED__="$Id: nr_socket.c,v 1.2 2008/04/28 17:59:02 ek
 #include <nr_api.h>
 #include "nr_socket.h"
 
+void nr_socket_print_log(const char* fmt, ...) {
+  FILE *f;
+  va_list vl;
+  f = fopen("/tmp/fflog.log", "a");
+  va_start(vl, fmt);
+  vfprintf(f, fmt, vl);
+  va_end(vl);
+  fclose(f);
+}
+
 int nr_socket_create_int(void *obj, nr_socket_vtbl *vtbl, nr_socket **sockp)
   {
     int _status;
@@ -79,11 +89,11 @@ int nr_socket_sendto(nr_socket *sock,const void *msg, size_t len, int flags,
   nr_transport_addr *addr)
   {
     size_t i;
-    printf("Patrick: print sending data\n");
+    nr_socket_print_log("Patrick,send:\n");
     for (i = 0; i < len; i++) {
-      printf("%02x ", ((char*)msg)[i]);
+      nr_socket_print_log("%02x ", ((unsigned char*)msg)[i]);
     }
-    printf("\nPatrick: ---------------------------\n");
+    nr_socket_print_log("\nPatrick,endsend\n");
 
     return sock->vtbl->ssendto(sock->obj,msg,len,flags,addr);
   }
@@ -92,6 +102,12 @@ int nr_socket_sendto(nr_socket *sock,const void *msg, size_t len, int flags,
 int nr_socket_recvfrom(nr_socket *sock,void * restrict buf, size_t maxlen,
   size_t *len, int flags, nr_transport_addr *addr)
   {
+    size_t i;
+    nr_socket_print_log("Patrick,recv:\n");
+    for (i = 0; i < len; i++) {
+      nr_socket_print_log("%02x ", ((unsigned char*)buf)[i]);
+    }
+    nr_socket_print_log("\nPatrick,endrecv\n");
     return sock->vtbl->srecvfrom(sock->obj, buf, maxlen, len, flags, addr);
   }
 

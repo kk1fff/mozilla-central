@@ -49,6 +49,8 @@ static int nr_stun_client_send_request(nr_stun_client_ctx *ctx);
 static void nr_stun_client_timer_expired_cb(NR_SOCKET s, int b, void *cb_arg);
 static int nr_stun_client_get_password(void *arg, nr_stun_message *msg, Data **password);
 
+extern void nr_socket_print_log(const char* fmt, ...);
+
 int nr_stun_client_ctx_create(char *label, nr_socket *sock, nr_transport_addr *peer, UINT4 RTO, nr_stun_client_ctx **ctxp)
   {
     nr_stun_client_ctx *ctx=0;
@@ -363,10 +365,10 @@ static int nr_stun_client_send_request(nr_stun_client_ctx *ctx)
     snprintf(string, sizeof(string)-1, "STUN-CLIENT(%s): Sending to %s ", ctx->label, ctx->peer_addr.as_string);
     r_dump(NR_LOG_STUN, LOG_DEBUG, string, (char*)ctx->request->buffer, ctx->request->length);
 
-    printf("Patrick: will send stun request, ctx: %p", ctx);
+    nr_socket_print_log("Patrick: will send stun request, ctx: %p", ctx);
     if(r=nr_socket_sendto(ctx->sock, ctx->request->buffer, ctx->request->length, 0, &ctx->peer_addr))
       ABORT(r);
-    printf("Patrick: end stun request, ctx: %p", ctx);
+    nr_socket_print_log("Patrick: end stun request, ctx: %p", ctx);
 
     ctx->request_ct++;
 
