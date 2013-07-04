@@ -47,6 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define nr_socket_prsock__
 
 #include <vector>
+#include <string>
 
 #include "nspr.h"
 #include "prio.h"
@@ -112,6 +113,7 @@ private:
   NR_async_cb cbs_[NR_ASYNC_WAIT_WRITE + 1];
   void *cb_args_[NR_ASYNC_WAIT_WRITE + 1];
   nsCOMPtr<nsIEventTarget> ststhread_;
+  std::string mMyAddr;
 };
 
 int nr_netaddr_to_transport_addr(const net::NetAddr *netaddr,
