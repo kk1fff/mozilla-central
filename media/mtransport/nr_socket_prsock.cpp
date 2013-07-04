@@ -330,6 +330,8 @@ int NrSocket::create(nr_transport_addr *addr) {
     ABORT(R_INTERNAL);
   }
 
+  mMyAddr = addr->as_string;
+
   r_log(LOG_GENERIC,LOG_DEBUG,"Creating socket %p with addr %s",
         fd_, addr->as_string);
   nr_transport_addr_copy(&my_addr_,addr);
@@ -377,6 +379,7 @@ abort:
 // This should be called on the STS thread.
 int NrSocket::sendto(const void *msg, size_t len,
                      int flags, nr_transport_addr *to) {
+  printf_stderr("Sending packet: %s->%s\n", mMyAddr.c_str(), to->as_string);
   ASSERT_ON_THREAD(ststhread_);
   int r,_status;
   PRNetAddr naddr;
