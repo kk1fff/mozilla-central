@@ -40,6 +40,7 @@ EXTRA_COMPONENTS += [
     'BrowserComponents.manifest',
 ]
 EXTRA_PP_COMPONENTS += [
+    'PatrickProtocol.js',
     'nsBrowserContentHandler.js',
     'nsBrowserGlue.js',
 ]
