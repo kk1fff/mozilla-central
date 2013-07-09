@@ -12,6 +12,7 @@ extern "C" {
 namespace mozilla {
 
 nr_interface_prioritizer* CreateIntefacePrioritizer();
+nr_interface_prioritizer* CreateFallbackIntefacePrioritizer();
 
 } // namespace mozilla
 
