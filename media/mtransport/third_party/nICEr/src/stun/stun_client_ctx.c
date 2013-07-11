@@ -277,10 +277,12 @@ int nr_stun_client_force_retransmit(nr_stun_client_ctx *ctx)
     return(_status);
   }
 
+int from_nr_stun_client_send_request = 0;
 static int nr_stun_client_send_request(nr_stun_client_ctx *ctx)
   {
     int r,_status;
     char string[256];
+    from_nr_stun_client_send_request = 1;
 
     if (ctx->state != NR_STUN_CLIENT_STATE_RUNNING)
         ABORT(R_NOT_PERMITTED);
@@ -393,6 +395,7 @@ static int nr_stun_client_send_request(nr_stun_client_ctx *ctx)
     if (_status) {
       ctx->state=NR_STUN_CLIENT_STATE_FAILED;
     }
+    from_nr_stun_client_send_request = 0;
     return(_status);
   }
 

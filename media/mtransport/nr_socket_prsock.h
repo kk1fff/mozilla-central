@@ -113,7 +113,6 @@ private:
   NR_async_cb cbs_[NR_ASYNC_WAIT_WRITE + 1];
   void *cb_args_[NR_ASYNC_WAIT_WRITE + 1];
   nsCOMPtr<nsIEventTarget> ststhread_;
-  std::string mMyAddr;
 };
 
 int nr_netaddr_to_transport_addr(const net::NetAddr *netaddr,

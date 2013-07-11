@@ -434,7 +434,7 @@ int nr_ice_candidate_initialize(nr_ice_candidate *cand, NR_async_cb ready_cb, vo
             r_log(LOG_ICE,LOG_ERR,"ICE-CANDIDATE(%s): Could not copy STUN server addr", cand->label);
             ABORT(r);
           }
-
+          
           if(r=nr_ice_candidate_initialize2(cand))
             ABORT(r);
         }
@@ -525,6 +525,7 @@ static int nr_ice_candidate_initialize2(nr_ice_candidate *cand)
 #endif /* USE_TURN */
       case SERVER_REFLEXIVE:
         /* Need to start stun */
+        printf_stderr("Initialize ice candidate, stun: %s\n", cand->stun_server_addr.as_string);
         if(r=nr_ice_srvrflx_start_stun(cand))
           ABORT(r);
         cand->osock=cand->isock->sock;
