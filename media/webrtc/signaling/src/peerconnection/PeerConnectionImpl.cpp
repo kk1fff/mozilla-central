@@ -549,7 +549,16 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
 
   mSTSThread = do_GetService(NS_SOCKETTRANSPORTSERVICE_CONTRACTID, &res);
   MOZ_ASSERT(mSTSThread);
-
+#ifdef MOZ_WIDGET_GONK
+  // Initialize NSS if we are in content process. For chrome process, NSS should already
+  // been initialized.
+  if (XRE_GetProcessType() != GeckoProcessType_Default) {
+    if (NSS_NoDB_Init(nullptr) != SECSuccess) {
+      CSFLogError(logTag, "NSS_NoDB_Init failed.");
+      return NS_ERROR_FAILURE;
+    }
+  }
+#else // MOZ_WIDGET_GONK
 #ifdef MOZILLA_INTERNAL_API
   // This code interferes with the C++ unit test startup code.
   nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
@@ -560,6 +569,7 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
   mWindow = do_QueryInterface(aWindow);
   NS_ENSURE_STATE(mWindow);
 #endif
+#endif // MOZ_WIDGET_GONK
 
   // Generate a random handle
   unsigned char handle_bin[8];
