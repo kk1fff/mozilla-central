@@ -30,6 +30,8 @@
 #include "nsIConsoleService.h"
 #include "nsThreadUtils.h"
 #include "nsProxyRelease.h"
+#include "nsIObserver.h"
+#include "nsIObserverService.h"
 
 #include "runnable_utils.h"
 #include "PeerConnectionCtx.h"
@@ -40,6 +42,9 @@
 #ifdef MOZILLA_INTERNAL_API
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Telemetry.h"
+#include "mozilla/PublicSSL.h"
+#include "nsXULAppAPI.h"
+#include "nsContentUtils.h"
 #include "nsDOMJSUtils.h"
 #include "nsIDocument.h"
 #include "nsIScriptError.h"
@@ -62,13 +67,102 @@
 using namespace mozilla;
 using namespace mozilla::dom;
 
+static const char* logTag = "PeerConnectionImpl";
+
+namespace {
+
+// Control the NSS for WebRTC in content process.
+class ContentSecurityManger : public nsIObserver {
+public:
+  static ContentSecurityManger* GetInstance()
+  {
+    printf_stderr("Patrick: ContentSecurityManager::GetInstance");
+    if (!mContentSecurityManager) {
+      mContentSecurityManager = new ContentSecurityManger();
+    }
+    return mContentSecurityManager;
+  }
+
+  NS_DECL_ISUPPORTS
+
+  virtual ~ContentSecurityManger() {
+    printf_stderr("Patrick: ContentSecurityManager::~ContentSecurityManager");
+    mContentSecurityManager = nullptr;
+  }
+
+  nsresult Start()
+  {
+    if (mStarted) {
+      return NS_OK;
+    }
+
+    if (NSS_NoDB_Init(nullptr) != SECSuccess) {
+      CSFLogError(logTag, "NSS_NoDB_Init failed.");
+      return NS_ERROR_FAILURE;
+    }
+    if (NSS_SetDomesticPolicy() != SECSuccess) {
+      CSFLogError(logTag, "NSS_SetDomesticPolicy failed.");
+      return NS_ERROR_FAILURE;
+    }
+
+    mozilla::psm::InitializeCipherSuite();
+    mStarted = true;
+
+    nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+    obs->AddObserver(this, "xpcom-shutdown", false);
+
+    return NS_OK;
+  }
+
+  nsresult Shutdown()
+  {
+    if (!mStarted) {
+      return NS_OK;
+    }
+
+    printf_stderr("Patrick: ContentSecurityManager::Shutdown");
+    NSS_Shutdown();
+    mStarted = false;
+    return NS_OK;
+  }
+
+  nsresult Observe(nsISupports* aSubject,
+                   const char *aTopic,
+                   const PRUnichar *aData)
+  {
+    if (strcmp(aTopic, "xpcom-shutdown") == 0) {
+      nsresult rv = Shutdown();
+      if (NS_FAILED(rv)) {
+        CSFLogError(logTag, "Error when shutdown ContentSecurityManger");
+      }
+
+      nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+      obs->RemoveObserver(this, "xpcom-shutdown");
+    }
+    return NS_OK;
+  }
+
+private:
+  static ContentSecurityManger* mContentSecurityManager;
+  bool mStarted;
+  ContentSecurityManger()
+    : mStarted(false) {
+    printf_stderr("Patrick: ContentSecurityManager::ContentSecurityManager");
+  }
+};
+
+NS_IMPL_ISUPPORTS1(ContentSecurityManger, nsIObserver)
+
+ContentSecurityManger* ContentSecurityManger::mContentSecurityManager = nullptr;
+
+} // anonymous namespace
+
 namespace mozilla {
   class DataChannel;
 }
 
 class nsIDOMDataChannel;
 
-static const char* logTag = "PeerConnectionImpl";
 static const int DTLS_FINGERPRINT_LENGTH = 64;
 static const int MEDIA_STREAM_MUTE = 0x80;
 
@@ -571,17 +665,24 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
 
   mSTSThread = do_GetService(NS_SOCKETTRANSPORTSERVICE_CONTRACTID, &res);
   MOZ_ASSERT(mSTSThread);
-
 #ifdef MOZILLA_INTERNAL_API
-  // This code interferes with the C++ unit test startup code.
-  nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
-  NS_ENSURE_SUCCESS(res, res);
+
+  // Initialize NSS if we are in content process. For chrome process, NSS should already
+  // been initialized.
+  if (XRE_GetProcessType() == GeckoProcessType_Default) {
+    // This code interferes with the C++ unit test startup code.
+    nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
+    NS_ENSURE_SUCCESS(res, res);
+  } else {
+    ContentSecurityManger::GetInstance()->Start();
+  }
+
   // Currently no standalone unit tests for DataChannel,
   // which is the user of mWindow
   MOZ_ASSERT(aWindow);
   mWindow = do_QueryInterface(aWindow);
   NS_ENSURE_STATE(mWindow);
-#endif
+#endif // MOZILLA_INTERNAL_API
 
   // Generate a random handle
   unsigned char handle_bin[8];
