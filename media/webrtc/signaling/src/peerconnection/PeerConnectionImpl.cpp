@@ -32,6 +32,8 @@
 #include "nsIConsoleService.h"
 #include "nsThreadUtils.h"
 #include "nsProxyRelease.h"
+#include "nsIObserver.h"
+#include "nsIObserverService.h"
 
 #include "runnable_utils.h"
 #include "PeerConnectionCtx.h"
@@ -42,6 +44,9 @@
 #ifdef MOZILLA_INTERNAL_API
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Telemetry.h"
+#include "mozilla/PublicSSL.h"
+#include "nsXULAppAPI.h"
+#include "nsContentUtils.h"
 #include "nsDOMJSUtils.h"
 #include "nsIDocument.h"
 #include "nsIScriptError.h"
@@ -64,13 +69,46 @@
 using namespace mozilla;
 using namespace mozilla::dom;
 
+static const char* logTag = "PeerConnectionImpl";
+
+#ifdef MOZILLA_INTERNAL_API
+static nsresult InitNSSInContent()
+{
+  if (XRE_GetProcessType() != GeckoProcessType_Content) {
+    return NS_OK;
+  }
+
+  static bool nssStarted = false;
+  if (nssStarted) {
+    return NS_OK;
+  }
+
+  if (NSS_NoDB_Init(nullptr) != SECSuccess) {
+    CSFLogError(logTag, "NSS_NoDB_Init failed.");
+    return NS_ERROR_FAILURE;
+  }
+  if (NSS_SetDomesticPolicy() != SECSuccess) {
+    CSFLogError(logTag, "NSS_SetDomesticPolicy failed.");
+    return NS_ERROR_FAILURE;
+  }
+
+  if (NS_FAILED(mozilla::psm::InitializeCipherSuite())) {
+    CSFLogError(logTag, "Fail to set up nss cipher suite.");
+    return NS_ERROR_FAILURE;
+  }
+
+  nssStarted = true;
+
+  return NS_OK;
+}
+#endif // MOZILLA_INTERNAL_API
+
 namespace mozilla {
   class DataChannel;
 }
 
 class nsIDOMDataChannel;
 
-static const char* logTag = "PeerConnectionImpl";
 static const int DTLS_FINGERPRINT_LENGTH = 64;
 static const int MEDIA_STREAM_MUTE = 0x80;
 
@@ -618,17 +656,24 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
 
   mSTSThread = do_GetService(NS_SOCKETTRANSPORTSERVICE_CONTRACTID, &res);
   MOZ_ASSERT(mSTSThread);
-
 #ifdef MOZILLA_INTERNAL_API
-  // This code interferes with the C++ unit test startup code.
-  nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
-  NS_ENSURE_SUCCESS(res, res);
+
+  // Initialize NSS if we are in content process. For chrome process, NSS should already
+  // been initialized.
+  if (XRE_GetProcessType() == GeckoProcessType_Default) {
+    // This code interferes with the C++ unit test startup code.
+    nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
+    NS_ENSURE_SUCCESS(res, res);
+  } else {
+    NS_ENSURE_SUCCESS(res = InitNSSInContent(), res);
+  }
+
   // Currently no standalone unit tests for DataChannel,
   // which is the user of mWindow
   MOZ_ASSERT(aWindow);
   mWindow = do_QueryInterface(aWindow);
   NS_ENSURE_STATE(mWindow);
-#endif
+#endif // MOZILLA_INTERNAL_API
 
   // Generate a random handle
   unsigned char handle_bin[8];
