@@ -915,17 +915,13 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIOBSERVER
 
-  static already_AddRefed<CipherSuiteChangeObserver> GetInstance();
-
   virtual ~CipherSuiteChangeObserver() {}
-  bool StartObserve();
-  void StopObserve();
+  static bool StartObserve();
+  static void StopObserve();
 
 private:
   static StaticRefPtr<CipherSuiteChangeObserver> sObserver;
-  bool mObserving;
-  CipherSuiteChangeObserver()
-    : mObserving(false) {}
+  CipherSuiteChangeObserver() {}
 };
 
 NS_IMPL_ISUPPORTS1(CipherSuiteChangeObserver, nsIObserver)
@@ -934,36 +930,26 @@ NS_IMPL_ISUPPORTS1(CipherSuiteChangeObserver, nsIObserver)
 StaticRefPtr<CipherSuiteChangeObserver> CipherSuiteChangeObserver::sObserver;
 
 // static
-already_AddRefed<CipherSuiteChangeObserver>
-CipherSuiteChangeObserver::GetInstance()
-{
-  if (!sObserver) {
-    sObserver = new CipherSuiteChangeObserver();
-    ClearOnShutdown(&sObserver);
-  }
-
-  nsRefPtr<CipherSuiteChangeObserver> observer = sObserver.get();
-  return observer.forget();
-}
-
 bool
 CipherSuiteChangeObserver::StartObserve()
 {
-  if (mObserving) {
-    return true;
+  if (!sObserver) {
+    sObserver = new CipherSuiteChangeObserver();
+    if (NS_FAILED(Preferences::AddStrongObserver(sObserver.get(), "security."))) {
+      sObserver = nullptr;
+      return false;
+    }
   }
-
-  NS_ENSURE_SUCCESS(Preferences::AddStrongObserver(this, "security."), false);
-  mObserving = true;
   return true;
 }
 
+// static
 void
 CipherSuiteChangeObserver::StopObserve()
 {
-  if (mObserving) {
-    Preferences::RemoveObserver(this, "security.");
-    mObserving = false;
+  if (sObserver) {
+    Preferences::RemoveObserver(sObserver.get(), "security.");
+    sObserver = nullptr;
   }
 }
 
@@ -1360,8 +1346,7 @@ nsNSSComponent::ShutdownNSS()
     mHttpForNSS.unregisterHttpClient();
 
     Preferences::RemoveObserver(this, "security.");
-    nsRefPtr<CipherSuiteChangeObserver> cipherSuiteChangeObserver = CipherSuiteChangeObserver::GetInstance();
-    cipherSuiteChangeObserver->StopObserve();
+    CipherSuiteChangeObserver::StopObserve();
 
 #ifndef MOZ_DISABLE_CRYPTOLEGACY
     ShutdownSmartCardThreads();
@@ -2057,8 +2042,7 @@ bool InitializeCipherSuite() {
   PORT_SetUCS2_ASCIIConversionFunction(pip_ucs2_ascii_conversion_fn);
 
   // Observe preference change around cipher suite setting.
-  nsRefPtr<CipherSuiteChangeObserver> observer = CipherSuiteChangeObserver::GetInstance();
-  return observer->StartObserve();
+  return CipherSuiteChangeObserver::StartObserve();
 }
 
 } // namespace psm
