@@ -39,6 +39,8 @@
 #ifdef MOZILLA_INTERNAL_API
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Telemetry.h"
+#include "nsXULAppAPI.h"
+#include "nsContentUtils.h"
 #include "nsDOMJSUtils.h"
 #include "nsIDocument.h"
 #include "nsIScriptError.h"
@@ -553,17 +555,31 @@ PeerConnectionImpl::Initialize(IPeerConnectionObserver* aObserver,
 
   mSTSThread = do_GetService(NS_SOCKETTRANSPORTSERVICE_CONTRACTID, &res);
   MOZ_ASSERT(mSTSThread);
-
 #ifdef MOZILLA_INTERNAL_API
-  // This code interferes with the C++ unit test startup code.
-  nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
-  NS_ENSURE_SUCCESS(res, res);
+
+  // Initialize NSS if we are in content process. For chrome process, NSS should already
+  // been initialized.
+  if (XRE_GetProcessType() == GeckoProcessType_Default) {
+    // This code interferes with the C++ unit test startup code.
+    nsCOMPtr<nsISupports> nssDummy = do_GetService("@mozilla.org/psm;1", &res);
+    NS_ENSURE_SUCCESS(res, res);
+  } else {
+    if (NSS_NoDB_Init(nullptr) != SECSuccess) {
+      CSFLogError(logTag, "NSS_NoDB_Init failed.");
+      return NS_ERROR_FAILURE;
+    }
+    if (NSS_SetDomesticPolicy() != SECSuccess) {
+      CSFLogError(logTag, "NSS_SetDomesticPolicy failed.");
+      return NS_ERROR_FAILURE;
+    }
+  }
+
   // Currently no standalone unit tests for DataChannel,
   // which is the user of mWindow
   MOZ_ASSERT(aWindow);
   mWindow = do_QueryInterface(aWindow);
   NS_ENSURE_STATE(mWindow);
-#endif
+#endif // MOZILLA_INTERNAL_API
 
   // Generate a random handle
   unsigned char handle_bin[8];
