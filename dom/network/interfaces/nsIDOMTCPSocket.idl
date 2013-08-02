@@ -74,6 +74,8 @@ interface nsIDOMTCPSocket : nsISupports
   nsIDOMTCPServerSocket listen(in unsigned short localPort, [optional] in jsval options,
                                [optional] in unsigned short backlog);
 
+  void startTLS();
+
   /**
    * The host of this socket object.
    */
