@@ -2,10 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "nsIServiceManager.h"
 #include "UDPSocketParent.h"
 #include "nsIUDPSocket.h"
 #include "mozilla/unused.h"
 #include "mozilla/net/DNS.h"
+#include "nsIDNSRecord.h"
+#include "nsIDNSService.h"
+#include "nsIDNSListener.h"
 
 namespace mozilla {
 namespace dom {
@@ -97,6 +101,11 @@ UDPSocketParent::Init(const nsCString &aHost, const uint16_t aPort)
   net::NetAddr localAddr;
   mSocket->GetAddress(&localAddr);
 
+  if (mFilter) {
+    bool r;
+    mFilter->SetLocalAddress(&localAddr, &r);
+  }
+
   uint16_t port;
   nsCString addr;
   rv = ConvertNetAddrToString(localAddr, &addr, &port);
@@ -116,22 +125,90 @@ UDPSocketParent::Init(const nsCString &aHost, const uint16_t aPort)
   return true;
 }
 
+namespace {
+class PendingSend: public nsIDNSListener
+{
+public:
+  NS_DECL_THREADSAFE_ISUPPORTS
+  NS_DECL_NSIDNSLISTENER
+
+  typedef bool (UDPSocketParent::*CallbackType)(const InfallibleTArray<uint8_t> &aData,
+                                                const mozilla::net::NetAddr &aAddr);
+
+  PendingSend(UDPSocketParent *aSocketParent,
+              CallbackType aCallback,
+              uint16_t aPort,
+              const InfallibleTArray<uint8_t> &aData)
+    : mSocketParent(aSocketParent)
+    , mCallback(aCallback)
+    , mPort(aPort)
+  {
+    mData.InsertElementsAt(0, aData.Elements(), aData.Length());
+  }
+
+  virtual ~PendingSend() {}
+
+private:
+  nsRefPtr<UDPSocketParent> mSocketParent;
+  CallbackType mCallback;
+  uint16_t mPort;
+  FallibleTArray<uint8_t> mData;
+};
+
+NS_IMPL_ISUPPORTS1(PendingSend, nsIDNSListener)
+
+NS_IMETHODIMP
+PendingSend::OnLookupComplete(nsICancelable *aRequest,
+                              nsIDNSRecord *aRec,
+                              nsresult aStatus)
+{
+  if (NS_FAILED(aStatus)) {
+    NS_WARNING("Failed to send UDP packet due to DNS lookup failure");
+    return NS_OK;
+  }
+
+  mozilla::net::NetAddr addr;
+  if (NS_SUCCEEDED(aRec->GetNextAddr(mPort, &addr))) {
+    if (!(mSocketParent.get()->*mCallback)(mData, addr)) {
+      return NS_ERROR_FAILURE;
+    }
+  }
+
+  return NS_OK;
+}
+
+nsresult
+ResolveHost(const nsACString &host, nsIDNSListener *listener)
+{
+  nsresult rv;
+
+  nsCOMPtr<nsIDNSService> dns =
+      do_GetService("@mozilla.org/network/dns-service;1", &rv);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  nsCOMPtr<nsICancelable> tmpOutstanding;
+  return dns->AsyncResolve(host, 0, listener, nullptr,
+                           getter_AddRefs(tmpOutstanding));
+
+}
+
+} // anonymous namespace
+
 bool
 UDPSocketParent::RecvData(const InfallibleTArray<uint8_t> &aData,
                           const nsCString& aRemoteAddress,
                           const uint16_t& aPort)
 {
   NS_ENSURE_TRUE(mSocket, true);
-  uint32_t count;
-  nsresult rv = mSocket->Send(aRemoteAddress,
-                              aPort, aData.Elements(),
-                              aData.Length(), &count);
-  mozilla::unused <<
-      PUDPSocketParent::SendCallback(NS_LITERAL_CSTRING("onsent"),
-                                     UDPSendResult(rv),
-                                     NS_LITERAL_CSTRING("connected"));
-  NS_ENSURE_SUCCESS(rv, true);
-  NS_ENSURE_TRUE(count > 0, true);
+  // Instead of asking socket to resolve host name and send message, we resolve
+  // host name by ourselve to get the address and let filter to decide whatever
+  // this message should be sent.
+  nsCOMPtr<nsIDNSListener> listener = new PendingSend(this,
+                                                      &UDPSocketParent::SendDataInternal,
+                                                      aPort, aData);
+  nsresult rv = ResolveHost(aRemoteAddress, listener);
   return true;
 }
 
@@ -140,16 +217,8 @@ UDPSocketParent::RecvDataWithAddress(const InfallibleTArray<uint8_t>& aData,
                                      const mozilla::net::NetAddr& aAddr)
 {
   NS_ENSURE_TRUE(mSocket, true);
-  uint32_t count;
-  nsresult rv = mSocket->SendWithAddress(&aAddr, aData.Elements(),
-                                         aData.Length(), &count);
-  mozilla::unused <<
-      PUDPSocketParent::SendCallback(NS_LITERAL_CSTRING("onsent"),
-                                     UDPSendResult(rv),
-                                     NS_LITERAL_CSTRING("connected"));
-  NS_ENSURE_SUCCESS(rv, true);
-  NS_ENSURE_TRUE(count > 0, true);
-  return true;
+
+  return SendDataInternal(aData, aAddr);
 }
 
 bool
@@ -203,6 +272,19 @@ UDPSocketParent::OnPacketReceived(nsIUDPSocket* aSocket, nsIUDPMessage* aMessage
   const char* buffer = data.get();
   uint32_t len = data.Length();
 
+  if (mFilter) {
+    bool allowed;
+    mozilla::net::NetAddr addr;
+    fromAddr->GetNetAddr(&addr);
+    nsresult rv = mFilter->FilterPacket(&addr,
+                                        (const uint8_t*)buffer, len,
+                                        nsIUDPSocketFilter::SF_INCOMING,
+                                        &allowed);
+    // Receiving unallowed data, drop.
+    NS_ENSURE_SUCCESS(rv, NS_OK);
+    NS_ENSURE_TRUE(allowed, NS_OK);
+  }
+
   FallibleTArray<uint8_t> fallibleArray;
   if (!fallibleArray.InsertElementsAt(0, buffer, len)) {
     FireInternalError(this, __LINE__);
@@ -232,6 +314,37 @@ UDPSocketParent::OnStopListening(nsIUDPSocket* aSocket, nsresult aStatus)
   }
   return NS_OK;
 }
+
+// UDPSocketParent's private functions
+bool
+UDPSocketParent::SendDataInternal(const InfallibleTArray<uint8_t>& aData,
+                                  const mozilla::net::NetAddr& aAddr)
+{
+  NS_ENSURE_TRUE(mSocket, true);
+
+  uint32_t count;
+  nsresult rv;
+  if (mFilter) {
+    bool allowed;
+    rv = mFilter->FilterPacket(&aAddr, aData.Elements(),
+                               aData.Length(), nsIUDPSocketFilter::SF_OUTGOING,
+                               &allowed);
+    // Sending unallowed data, kill content.
+    NS_ENSURE_SUCCESS(rv, false);
+    NS_ENSURE_TRUE(allowed, false);
+  }
+
+  rv = mSocket->SendWithAddress(&aAddr, aData.Elements(),
+                                aData.Length(), &count);
+  mozilla::unused <<
+      PUDPSocketParent::SendCallback(NS_LITERAL_CSTRING("onsent"),
+                                     UDPSendResult(rv),
+                                     NS_LITERAL_CSTRING("connected"));
+  NS_ENSURE_SUCCESS(rv, true);
+  NS_ENSURE_TRUE(count > 0, true);
+  return true;
+}
+
 
 } // namespace dom
 } // namespace mozilla

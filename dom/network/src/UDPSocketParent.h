@@ -8,6 +8,7 @@
 #include "mozilla/net/PUDPSocketParent.h"
 #include "nsCOMPtr.h"
 #include "nsIUDPSocket.h"
+#include "nsIUDPSocketFilter.h"
 
 namespace mozilla {
 namespace dom {
@@ -20,6 +21,10 @@ public:
   NS_DECL_NSIUDPSOCKETLISTENER
 
   UDPSocketParent() : mIPCOpen(true) {}
+  UDPSocketParent(nsIUDPSocketFilter* filter) :
+    mIPCOpen(true),
+    mFilter(filter) {}
+
   virtual ~UDPSocketParent();
 
   bool Init(const nsCString& aHost, const uint16_t aPort);
@@ -35,8 +40,12 @@ public:
 private:
   virtual void ActorDestroy(ActorDestroyReason why) MOZ_OVERRIDE;
 
+  bool SendDataInternal(const InfallibleTArray<uint8_t>& data,
+                        const mozilla::net::NetAddr& addr);
+
   bool mIPCOpen;
   nsCOMPtr<nsIUDPSocket> mSocket;
+  nsCOMPtr<nsIUDPSocketFilter> mFilter;
 };
 
 } // namespace dom

@@ -88,7 +88,8 @@ protected:
   virtual bool DeallocPWebSocketParent(PWebSocketParent*);
   virtual PTCPSocketParent* AllocPTCPSocketParent();
   virtual PUDPSocketParent* AllocPUDPSocketParent(const nsCString& aHost,
-                                                  const uint16_t& aPort);
+                                                  const uint16_t& aPort,
+                                                  const nsCString& aFilter);
 
   virtual PRemoteOpenFileParent* AllocPRemoteOpenFileParent(const URIParams& aFileURI,
                                                             const OptionalURIParams& aAppURI)
@@ -111,7 +112,8 @@ protected:
   virtual bool DeallocPTCPServerSocketParent(PTCPServerSocketParent*);
   virtual bool RecvPUDPSocketConstructor(PUDPSocketParent*,
                                          const nsCString& aHost,
-                                         const uint16_t& aPort);
+                                         const uint16_t& aPort,
+                                         const nsCString& aFilter);
   virtual bool DeallocPUDPSocketParent(PUDPSocketParent*);
   virtual bool RecvHTMLDNSPrefetch(const nsString& hostname,
                                    const uint16_t& flags);
