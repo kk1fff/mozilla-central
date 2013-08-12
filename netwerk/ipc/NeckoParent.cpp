@@ -348,12 +348,12 @@ PUDPSocketParent*
 NeckoParent::AllocPUDPSocketParent(const nsCString& aHost,
                                    const uint16_t& aPort)
 {
-  if (UsingNeckoIPCSecurity() &&
-      !AssertAppProcessPermission(Manager(), "udp-socket")) {
-    printf_stderr("NeckoParent::AllocPUDPSocket: FATAL error: app doesn't permit udp-socket connections \
-                   KILLING CHILD PROCESS\n");
-    return nullptr;
-  }
+//  if (UsingNeckoIPCSecurity() &&
+//      !AssertAppProcessPermission(Manager(), "udp-socket")) {
+//    printf_stderr("NeckoParent::AllocPUDPSocket: FATAL error: app doesn't permit udp-socket connections \
+//                   KILLING CHILD PROCESS\n");
+//    return nullptr;
+//  }
   UDPSocketParent* p = new UDPSocketParent();
   p->AddRef();
   return p;
