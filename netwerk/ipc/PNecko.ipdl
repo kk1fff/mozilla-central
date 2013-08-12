@@ -59,7 +59,7 @@ parent:
   PWebSocket(PBrowser browser, SerializedLoadContext loadContext);
   PTCPServerSocket(uint16_t localPort, uint16_t backlog, nsString binaryType);
   PRemoteOpenFile(URIParams fileuri, OptionalURIParams appuri);
-  PUDPSocket(nsCString host, uint16_t port);
+  PUDPSocket(nsCString host, uint16_t port, nsCString filter);
 
   HTMLDNSPrefetch(nsString hostname, uint16_t flags);
   CancelHTMLDNSPrefetch(nsString hostname, uint16_t flags, nsresult reason);

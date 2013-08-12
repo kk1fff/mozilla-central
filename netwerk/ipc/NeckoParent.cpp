@@ -27,6 +27,7 @@
 #include "nsPrintfCString.h"
 #include "nsHTMLDNSPrefetch.h"
 #include "nsIAppsService.h"
+#include "nsIUDPSocketFilter.h"
 #include "nsEscape.h"
 #include "RemoteOpenFileParent.h"
 
@@ -377,18 +378,42 @@ NeckoParent::DeallocPTCPServerSocketParent(PTCPServerSocketParent* actor)
 
 PUDPSocketParent*
 NeckoParent::AllocPUDPSocketParent(const nsCString& aHost,
-                                   const uint16_t& aPort)
+                                   const uint16_t& aPort,
+                                   const nsCString& aFilter)
 {
-  UDPSocketParent* p = new UDPSocketParent();
+  UDPSocketParent* p;
+
+  // Try to apply a filter.
+  nsAutoCString contractId(NS_NETWORK_UDP_SOCKET_FILTER_HANDLER_PREFIX);
+  contractId.Append(aFilter);
+
+  if (!aFilter.IsEmpty()) {
+    nsCOMPtr<nsIUDPSocketFilterHandler> filterHandler = do_GetService(contractId.get());
+    if (filterHandler) {
+      nsCOMPtr<nsIUDPSocketFilter> filter;
+      if (NS_SUCCEEDED(filterHandler->NewFilter(getter_AddRefs(filter)))) {
+        p = new UDPSocketParent(filter);
+      } else {
+        printf_stderr("Cannot create filter that content specified. filter name: %s.", aFilter.get());
+      }
+    } else {
+      printf_stderr("Content doesn't have a valid filter.");
+    }
+  }
+
+  if (!p) {
+    return nullptr;
+  }
+
   p->AddRef();
   return p;
-
 }
 
 bool
 NeckoParent::RecvPUDPSocketConstructor(PUDPSocketParent* aActor,
                                        const nsCString& aHost,
-                                       const uint16_t& aPort)
+                                       const uint16_t& aPort,
+                                       const nsCString& aFilter)
 {
   return static_cast<UDPSocketParent*>(aActor)->Init(aHost, aPort);
 }
