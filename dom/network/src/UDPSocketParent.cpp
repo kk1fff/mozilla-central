@@ -81,7 +81,6 @@ UDPSocketParent::Init(const nsCString &aHost, const uint16_t aPort)
       FireInternalError(this, __LINE__);
       return true;
     }
-
     mozilla::net::NetAddr addr;
     PRNetAddrToNetAddr(&prAddr, &addr);
     rv = sock->InitWithAddress(&addr);
@@ -93,6 +92,8 @@ UDPSocketParent::Init(const nsCString &aHost, const uint16_t aPort)
   }
 
   mSocket = sock;
+
+  mSocket->SetSocketFilter(mFilter);
 
   net::NetAddr localAddr;
   mSocket->GetAddress(&localAddr);
@@ -122,6 +123,7 @@ UDPSocketParent::RecvData(const InfallibleTArray<uint8_t> &aData,
                           const uint16_t& aPort)
 {
   NS_ENSURE_TRUE(mSocket, true);
+
   uint32_t count;
   nsresult rv = mSocket->Send(aRemoteAddress,
                               aPort, aData.Elements(),
@@ -140,6 +142,7 @@ UDPSocketParent::RecvDataWithAddress(const InfallibleTArray<uint8_t>& aData,
                                      const mozilla::net::NetAddr& aAddr)
 {
   NS_ENSURE_TRUE(mSocket, true);
+
   uint32_t count;
   nsresult rv = mSocket->SendWithAddress(&aAddr, aData.Elements(),
                                          aData.Length(), &count);

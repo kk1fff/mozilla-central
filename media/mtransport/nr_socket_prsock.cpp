@@ -800,6 +800,8 @@ void NrSocketIpc::create_m(const nsACString &host, const uint16_t port) {
   socket_child_ = do_CreateInstance("@mozilla.org/udp-socket-child;1", &rv);
   NS_ENSURE_SUCCESS_VOID(rv);
 
+  NS_ENSURE_SUCCESS_VOID(socket_child_->SetFilterName(NS_LITERAL_STRING("webrtc")));
+
   NS_ENSURE_SUCCESS_VOID(socket_child_->Bind(this, host, port));
 }
 

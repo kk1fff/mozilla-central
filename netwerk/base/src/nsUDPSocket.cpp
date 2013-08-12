@@ -527,6 +527,19 @@ nsUDPSocket::GetAddress(NetAddr *aResult)
   return NS_OK;
 }
 
+NS_IMETHODIMP
+nsUDPSocket::SetFilter(nsIUDPSocketFilter* filter)
+{
+  // Set local address to packet filter if there's one.
+  if (mFilter) {
+    if (NS_FAILED(mFilter->SetLocalAddress(mAddr))) {
+      NS_WARNING("cannot set local address to packet filter");
+      return NS_ERROR_FAILURE;
+    }
+  }
+  return NS_OK;
+}
+
 namespace {
 
 class SocketListenerProxy MOZ_FINAL : public nsIUDPSocketListener
@@ -724,6 +737,14 @@ nsUDPSocket::SendWithAddress(const NetAddr *aAddr, const uint8_t *aData,
   NS_ENSURE_ARG(aData);
   NS_ENSURE_ARG_POINTER(_retval);
 
+  if (mFilter) {
+    bool isOperationAllowed;
+    mFilter->FilterPacket(aAddr, aData.Elements(), aData.Length());
+    if (!isOperationAllowed) {
+      return true;
+    }
+  }
+  
   *_retval = 0;
 
   PRNetAddr prAddr;
