@@ -97,6 +97,11 @@ UDPSocketParent::Init(const nsCString &aHost, const uint16_t aPort)
   net::NetAddr localAddr;
   mSocket->GetAddress(&localAddr);
 
+  if (mFilter) {
+    bool r;
+    mFilter->SetLocalAddress(&localAddr, &r);
+  }
+
   uint16_t port;
   nsCString addr;
   rv = ConvertNetAddrToString(localAddr, &addr, &port);
@@ -122,7 +127,9 @@ UDPSocketParent::RecvData(const InfallibleTArray<uint8_t> &aData,
                           const uint16_t& aPort)
 {
   NS_ENSURE_TRUE(mSocket, true);
+
   uint32_t count;
+
   nsresult rv = mSocket->Send(aRemoteAddress,
                               aPort, aData.Elements(),
                               aData.Length(), &count);
@@ -140,9 +147,21 @@ UDPSocketParent::RecvDataWithAddress(const InfallibleTArray<uint8_t>& aData,
                                      const mozilla::net::NetAddr& aAddr)
 {
   NS_ENSURE_TRUE(mSocket, true);
+
   uint32_t count;
-  nsresult rv = mSocket->SendWithAddress(&aAddr, aData.Elements(),
-                                         aData.Length(), &count);
+  nsresult rv;
+  if (mFilter) {
+    bool allowed;
+    rv = mFilter->FilterPacket(&aAddr, aData.Elements(),
+                               aData.Length(), nsIUDPSocketFilter::SF_OUTGOING,
+                               &allowed);
+    // Sending unallowed data, kill content.
+    NS_ENSURE_SUCCESS(rv, false);
+    NS_ENSURE_TRUE(allowed, false);
+  }
+
+  rv = mSocket->SendWithAddress(&aAddr, aData.Elements(),
+                                aData.Length(), &count);
   mozilla::unused <<
       PUDPSocketParent::SendCallback(NS_LITERAL_CSTRING("onsent"),
                                      UDPSendResult(rv),
@@ -202,6 +221,19 @@ UDPSocketParent::OnPacketReceived(nsIUDPSocket* aSocket, nsIUDPMessage* aMessage
 
   const char* buffer = data.get();
   uint32_t len = data.Length();
+
+  if (mFilter) {
+    bool allowed;
+    mozilla::net::NetAddr addr;
+    fromAddr->GetNetAddr(&addr);
+    nsresult rv = mFilter->FilterPacket(&addr,
+                                        (const uint8_t*)buffer, len,
+                                        nsIUDPSocketFilter::SF_INCOMING,
+                                        &allowed);
+    // Receiving unallowed data, drop.
+    NS_ENSURE_SUCCESS(rv, NS_OK);
+    NS_ENSURE_TRUE(allowed, NS_OK);
+  }
 
   FallibleTArray<uint8_t> fallibleArray;
   if (!fallibleArray.InsertElementsAt(0, buffer, len)) {
