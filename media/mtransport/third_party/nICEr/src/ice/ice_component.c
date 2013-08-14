@@ -195,6 +195,20 @@ int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *compon
       ABORT(r);
     }
 
+    /* Sort interfaces by preference */
+    if(ctx->interface_prioritizer) {
+      for(i=0;i<addr_ct;i++){
+        if(r=nr_interface_prioritizer_add_interface(ctx->interface_prioritizer,addrs+i)) {
+          r_log(LOG_ICE,LOG_ERR,"ICE(%s): unable to add interface into prioritizer",ctx->label);
+          ABORT(r);
+        }
+      }
+      if(r=nr_interface_prioritizer_sort_preference(ctx->interface_prioritizer)) {
+        r_log(LOG_ICE,LOG_ERR,"ICE(%s): unable to sort interface by preference",ctx->label);
+        ABORT(r);
+      }
+    }
+
     if(addr_ct==0){
       r_log(LOG_ICE,LOG_ERR,"ICE(%s): no local addresses available",ctx->label);
       ABORT(R_NOT_FOUND);
