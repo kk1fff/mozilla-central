@@ -172,6 +172,21 @@ int nr_ice_ctx_set_resolver(nr_ice_ctx *ctx, nr_resolver *resolver)
   }
 
 
+int nr_ice_ctx_set_interface_prioritizer(nr_ice_ctx *ctx, nr_interface_prioritizer *ip)
+  {
+    int _status;
+
+    if (ctx->interface_prioritizer) {
+      ABORT(R_ALREADY);
+    }
+
+    ctx->interface_prioritizer = ip;
+
+    _status=0;
+   abort:
+    return(_status);
+  }
+
 #ifdef USE_TURN
 int nr_ice_fetch_turn_servers(int ct, nr_ice_turn_server **out)
   {
@@ -374,6 +389,7 @@ static void nr_ice_ctx_destroy_cb(NR_SOCKET s, int how, void *cb_arg)
     }
 
     nr_resolver_destroy(&ctx->resolver);
+    nr_interface_prioritizer_destroy(&ctx->interface_prioritizer);
 
     RFREE(ctx);
   }
@@ -416,10 +432,13 @@ void nr_ice_initialize_finished_cb(NR_SOCKET s, int h, void *cb_arg)
     }
   }
 
+#define MAXADDRS 100 // Ridiculously high
 int nr_ice_initialize(nr_ice_ctx *ctx, NR_async_cb done_cb, void *cb_arg)
   {
     int r,_status;
     nr_ice_media_stream *stream;
+    nr_local_addr addrs[MAXADDRS];
+    int addr_ct,i;
 
     r_log(LOG_ICE,LOG_DEBUG,"ICE(%s): Initializing candidates",ctx->label);
     ctx->state=NR_ICE_STATE_INITIALIZING;
@@ -431,10 +450,30 @@ int nr_ice_initialize(nr_ice_ctx *ctx, NR_async_cb done_cb, void *cb_arg)
       ABORT(R_BAD_ARGS);
     }
 
+    /* First, gather all the local addresses we have */
+    if(r=nr_stun_find_local_addresses(addrs,MAXADDRS,&addr_ct)) {
+      r_log(LOG_ICE,LOG_ERR,"ICE(%s): unable to find local addresses",ctx->label);
+      ABORT(r);
+    }
+
+    /* Sort interfaces by preference */
+    if(ctx->interface_prioritizer) {
+      for(i=0;i<addr_ct;i++){
+        if(r=nr_interface_prioritizer_add_interface(ctx->interface_prioritizer,addrs+i)) {
+          r_log(LOG_ICE,LOG_ERR,"ICE(%s): unable to add interface ",ctx->label);
+          ABORT(r);
+        }
+      }
+      if(r=nr_interface_prioritizer_sort_preference(ctx->interface_prioritizer)) {
+        r_log(LOG_ICE,LOG_ERR,"ICE(%s): unable to sort interface by preference",ctx->label);
+        ABORT(r);
+      }
+    }
+
     /* Initialize all the media stream/component pairs */
     stream=STAILQ_FIRST(&ctx->streams);
     while(stream){
-      if(r=nr_ice_media_stream_initialize(ctx,stream))
+      if(r=nr_ice_media_stream_initialize(ctx,stream,addrs,addr_ct))
         ABORT(r);
 
       stream=STAILQ_NEXT(stream,entry);

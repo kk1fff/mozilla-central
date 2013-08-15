@@ -80,7 +80,7 @@ typedef STAILQ_HEAD(nr_ice_component_head_,nr_ice_component_) nr_ice_component_h
 
 int nr_ice_component_create(struct nr_ice_media_stream_ *stream, int component_id, nr_ice_component **componentp);
 int nr_ice_component_destroy(nr_ice_component **componentp);
-int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *component);
+int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *component,nr_local_addr *addrs,int addr_ct);
 int nr_ice_component_prune_candidates(nr_ice_ctx *ctx, nr_ice_component *comp);
 int nr_ice_component_pair_candidates(nr_ice_peer_ctx *pctx, nr_ice_component *lcomp,nr_ice_component *pcomp);
 int nr_ice_component_service_pre_answer_requests(nr_ice_peer_ctx *pctx, nr_ice_component *pcomp, char *username, int *serviced);

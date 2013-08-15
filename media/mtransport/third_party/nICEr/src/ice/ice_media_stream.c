@@ -123,14 +123,14 @@ int nr_ice_media_stream_destroy(nr_ice_media_stream **streamp)
     return(0);
   }
 
-int nr_ice_media_stream_initialize(nr_ice_ctx *ctx, nr_ice_media_stream *stream)
+int nr_ice_media_stream_initialize(nr_ice_ctx *ctx, nr_ice_media_stream *stream,nr_local_addr *addrs,int addr_ct)
   {
     int r,_status;
     nr_ice_component *comp;
 
     comp=STAILQ_FIRST(&stream->components);
     while(comp){
-      if(r=nr_ice_component_initialize(ctx,comp))
+      if(r=nr_ice_component_initialize(ctx,comp,addrs,addr_ct))
         ABORT(r);
       comp=STAILQ_NEXT(comp,entry);
     }
