@@ -89,6 +89,8 @@ nrappkit copyright:
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
+#include <set>
+#include <string>
 
 #include "nspr.h"
 #include "prerror.h"
@@ -502,10 +504,114 @@ static int nr_socket_local_destroy(void **objp) {
   return 0;
 }
 
+static void format_stun_id_text(char *buf, const UINT12& id) {
+  char c[4];
+  buf[0] = 0;
+  for (int i = 0; i < 12; i++) {
+    sprintf(c, "%02x", id.octet[i]);
+    strcat(buf, c);
+  }
+}
+
+static void print_stun(const void *msg, size_t len) {
+  printf_stderr("nr_is_stun_message = %d\n", nr_is_stun_message(reinterpret_cast<UCHAR*>(const_cast<void*>(msg)), len));
+  if (nr_is_stun_message(reinterpret_cast<UCHAR*>(const_cast<void*>(msg)), len) == 3) {
+    nr_stun_message_header *header = (nr_stun_message_header*) msg;
+    printf_stderr("  stun_message_header.type:         %d\n", header->type);
+    printf_stderr("  stun_message_header.length:       %d\n", header->length);
+    printf_stderr("  stun_message_header.magic_cookie: %d\n", header->magic_cookie);
+    char buf[25];
+    format_stun_id_text(buf, header->id);
+    printf_stderr("  stun_message_header.id:           %s\n", buf);
+  }
+}
+
+static void format_address(char *buf, const nr_transport_addr *addr) {
+  char buffer[40];
+  switch(addr->ip_version){
+  case NR_IPV4:
+    if (!inet_ntop(AF_INET, &addr->u.addr4.sin_addr, buffer, sizeof(buffer))) {
+      strcpy(buffer, "[error]");
+    }
+    sprintf(buf, "IP4:%s", buffer);
+    break;
+  }
+}
+
+static void format_record(char *buf, const void *msg, const nr_transport_addr *addr) {
+  char id[25];
+  char str_addr[44];
+  format_stun_id_text(id, ((nr_stun_message_header*)msg)->id);
+  format_address(str_addr, addr);
+  sprintf(buf, "%s:%s", id, str_addr);
+}
+
+static std::set<std::string> gSentRequest;
+static std::set<std::string> gWhiteList;
+static void filter_outgoing_message(const void *msg, size_t len, nr_transport_addr *addr) {
+  // 1. check white list
+  char str_addr[70];
+  format_address(str_addr, addr);
+  printf_stderr("Remote addr: %s\n", str_addr);
+  if (gWhiteList.find(str_addr) != gWhiteList.end()) {
+    // white listed
+    printf_stderr("  whitelisted\n");
+    printf_stderr(">> Allowed <<\n");
+    return;
+  }
+
+  // 2. check type
+  if (nr_is_stun_message(reinterpret_cast<UCHAR*>(const_cast<void*>(msg)), len) == 3) {
+    char record[70];
+    format_record(record, msg, addr);
+    printf_stderr("  is stun packet\n");
+    printf_stderr("  record: %s\n", record);
+    printf_stderr(">> Allowed <<\n");
+    gSentRequest.insert(record);
+    return;
+  }
+
+  printf(">> Denied <<\n");
+}
+
+static void filter_incoming_message(const void *msg, size_t len, nr_transport_addr *addr) {
+  // 1. check white list
+  char str_addr[70];
+  format_address(str_addr, addr);
+  printf_stderr("Remote addr: %s\n", str_addr);
+  if (gWhiteList.find(str_addr) != gWhiteList.end()) {
+    // white listed
+    printf_stderr("  whitelisted\n");
+    printf_stderr(">> Allowed <<\n");
+    return;
+  }
+
+  // 2. check type
+  if (nr_is_stun_message(reinterpret_cast<UCHAR*>(const_cast<void*>(msg)), len) > 0) {
+    char record[70];
+    format_record(record, msg, addr);
+    printf_stderr("  is stun packet\n");
+    printf_stderr("  record: %s\n", record);
+    if (gSentRequest.find(record) != gSentRequest.end()) {
+      printf_stderr("  adding to whitelist: %s\n", record);
+      // If we initiate this message, we can add it to white list now.
+      gSentRequest.erase(record);
+      gWhiteList.insert(str_addr);
+    }
+    printf_stderr(">> Allowed <<\n");
+    return;
+  }
+
+  printf(">> Denied <<\n");
+}
+
 static int nr_socket_local_sendto(void *obj,const void *msg, size_t len,
                                   int flags, nr_transport_addr *addr) {
   NrSocket *sock = static_cast<NrSocket *>(obj);
-  printf_stderr("nr_is_stun_message = %d\n", nr_is_stun_message(reinterpret_cast<UCHAR*>(const_cast<void*>(msg)), len));
+  nr_transport_addr_fmt_addr_string(addr);
+  printf_stderr(">>> Sending: %s\n", addr->as_string);
+  print_stun(msg, len);
+  filter_outgoing_message(msg, len, addr);
   return sock->sendto(msg, len, flags, addr);
 }
 
@@ -513,8 +619,12 @@ static int nr_socket_local_recvfrom(void *obj,void * restrict buf,
                                     size_t maxlen, size_t *len, int flags,
                                     nr_transport_addr *addr) {
   NrSocket *sock = static_cast<NrSocket *>(obj);
-
-  return sock->recvfrom(buf, maxlen, len, flags, addr);
+  int r = sock->recvfrom(buf, maxlen, len, flags, addr);
+  nr_transport_addr_fmt_addr_string(addr);
+  printf_stderr(">>> Receving: %s\n", addr->as_string);
+  print_stun(buf, *len);
+  filter_incoming_message(buf, *len, addr);
+  return r;
 }
 
 static int nr_socket_local_getfd(void *obj, NR_SOCKET *fd) {
