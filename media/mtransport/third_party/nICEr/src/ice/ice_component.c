@@ -170,7 +170,6 @@ int nr_ice_component_destroy(nr_ice_component **componentp)
     return(0);
   }
 
-#define MAXADDRS 100 // Ridiculously high
 /* Make all the candidates we can make at the beginning */
 int nr_ice_component_initialize(struct nr_ice_ctx_ *ctx,nr_ice_component *component,nr_local_addr *addrs,int addr_ct)
   {
