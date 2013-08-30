@@ -5286,6 +5286,10 @@ if test -n "$MOZ_WEBRTC"; then
     esac
 fi
 
+AC_TRY_COMPILE([#include <linux/ethtool.h>],
+               [struct ethtool_cmd cmd; cmd.speed_hi = 0],
+               AC_DEFINE(MOZ_WEBRTC_HAVE_ETHTOOL_SPEED_HI),)
+
 # target_arch is from {ia32|x64|arm|ppc}
 case "$CPU_ARCH" in
 x86_64)
