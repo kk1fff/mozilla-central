@@ -362,6 +362,9 @@ NeckoParent::AllocPUDPSocketParent(const nsCString& aHost,
     // Content doesn't have udp-socket permission, try to apply filter.
     nsAutoCString contractId(NS_NETWORK_UDP_SOCKET_FILTER_HANDLER_PREFIX);
     contractId.Append(aFilter);
+
+    printf_stderr("Trying filter: %s\n", contractId.get());
+
     nsCOMPtr<nsIUDPSocketFilterHandler> filterHandler = do_GetService(contractId.get());
     if (!filterHandler) {
       printf_stderr("Content doesn't have udp-socket permission or a valid filter");

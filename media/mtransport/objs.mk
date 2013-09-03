@@ -67,6 +67,7 @@ DEFINES += \
 
 MTRANSPORT_LCPPSRCS = \
   dtlsidentity.cpp \
+  mtransport_module.cpp \
   nricectx.cpp \
   nricemediastream.cpp \
   nriceresolverfake.cpp \
@@ -74,6 +75,7 @@ MTRANSPORT_LCPPSRCS = \
   nrinterfaceprioritizer.cpp \
   nr_socket_prsock.cpp \
   nr_timer.cpp \
+  stun_udp_socket_filter.cpp \
   transportflow.cpp \
   transportlayer.cpp \
   transportlayerice.cpp \
