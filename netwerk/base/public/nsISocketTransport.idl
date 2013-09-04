@@ -64,6 +64,11 @@ interface nsISocketTransport : nsITransport
     nsINetAddr getScriptableSelfAddr();
 
     /**
+     * Add a socket layer to a socket.
+     */
+    void addSocketLayer(in ACString aType);
+
+    /**
      * Security info object returned from the secure socket provider.  This
      * object supports nsISSLSocketControl, nsITransportSecurityInfo, and
      * possibly other interfaces.

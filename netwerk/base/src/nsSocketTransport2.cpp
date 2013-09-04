@@ -1146,6 +1146,57 @@ nsSocketTransport::BuildSocket(PRFileDesc *&fd, bool &proxyTransparent, bool &us
 }
 
 nsresult
+nsSocketTransport::AddSocketLayer(const nsACString& aType)
+{
+  NS_ASSERTION(PR_GetCurrentThread() == gSocketThread, "wrong thread");
+
+  if (!aType.EqualLiteral("ssl") && !aType.EqualLiteral("starttls")) {
+    SOCKET_LOG("addSocketLayer supports type of ssl and starttls, while "
+               "required type is %s", aType.get());
+    return NS_FAILED;
+  }
+
+  nsresult rv;
+  nsCOMPtr<nsISocketProviderService> socketProviderService =
+    do_GetService(kSocketProviderServiceCID, &rv);
+  NS_ENSURE_SUCCEED(rv, rv);
+
+  nsCOMPtr<nsISocketProvider> provider;
+  rv = socketProviderService->GetSocketProvider(aType.get(),
+                                                getter_AddRefs(provider));
+  NS_ENSURE_SUCCEED(rv, rv);
+
+  const char *host = mHost.get();
+  int32_t port = (int32_t) mPort;
+  const char *proxyHost = mProxyHost.IsEmpty() ? nullptr : mProxyHost.get();
+  int32_t proxyPort = (int32_t) mProxyPort;
+  uint32_t proxyFlags = 0;
+  nsCOMPtr<nsISupports> secinfo;
+
+  rv = provider->AddToSocket(mNetAddr.raw.family,
+                             host, port, proxyHost, proxyPort,
+                             proxyFlags, mFd,
+                             getter_AddRefs(secinfo));
+
+  if (isSSL || (strcmp(mTypes[i], "starttls") == 0)) {
+    // remember security info and give notification callbacks to PSM...
+    nsCOMPtr<nsIInterfaceRequestor> callbacks;
+    {
+      MutexAutoLock lock(mLock);
+      mSecInfo = secinfo;
+      callbacks = mCallbacks;
+      SOCKET_LOG(("  [secinfo=%x callbacks=%x]\n", mSecInfo.get(), mCallbacks.get()));
+    }
+    // don't call into PSM while holding mLock!!
+    nsCOMPtr<nsISSLSocketControl> secCtrl(do_QueryInterface(secinfo));
+    if (secCtrl)
+      secCtrl->SetNotificationCallbacks(callbacks);
+    // remember if socket type is SSL so we can ProxyStartSSL if need be.
+    usingSSL = isSSL;
+  }
+}
+
+nsresult
 nsSocketTransport::InitiateSocket()
 {
     SOCKET_LOG(("nsSocketTransport::InitiateSocket [this=%p]\n", this));
