@@ -17,6 +17,7 @@
 #include "nsDirectoryServiceDefs.h"
 #include "nsICertOverrideService.h"
 #include "mozilla/Preferences.h"
+#include "PublicSSL.h"
 
 #ifndef MOZ_DISABLE_CRYPTOLEGACY
 #include "nsIDOMNode.h"
@@ -1038,6 +1039,172 @@ static void configureMD5(bool enabled)
 #define ALLOW_UNRESTRICTED_RENEGO_DEFAULT false
 #define FALSE_START_ENABLED_DEFAULT true
 #define CIPHER_ENABLED_DEFAULT false
+#define SEND_LM_DEFAULT false
+
+namespace {
+class CipherSettingsObserver : public nsIObserver
+                             , public nsSupportsWeakReference {
+
+public:
+
+  virtual ~CipherSettingsObserver() {}
+
+  NS_DECL_ISUPPORTS;
+
+  NS_IMETHODIMP
+  Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
+  {
+    if (nsCRT::strcmp(aTopic, NS_PREFBRANCH_PREFCHANGE_TOPIC_ID) == 0) {
+      nsNSSShutDownPreventionLock locker;
+      bool clearSessionCache = false;
+      NS_ConvertUTF16toUTF8  prefName(someData);
+
+      if (prefName.Equals("security.enable_md5_signatures")) {
+        bool md5Enabled = Preferences::GetBool("security.enable_md5_signatures",
+                                               MD5_ENABLED_DEFAULT);
+        configureMD5(md5Enabled);
+        clearSessionCache = true;
+      } else if (prefName.Equals("security.enable_tls_session_tickets")) {
+        bool tlsSessionTicketsEnabled =
+          Preferences::GetBool("security.enable_tls_session_tickets",
+                               TLS_SESSION_TICKETS_ENABLED_DEFAULT);
+        SSL_OptionSetDefault(SSL_ENABLE_SESSION_TICKETS, tlsSessionTicketsEnabled);
+      } else if (prefName.Equals("security.ssl.require_safe_negotiation")) {
+        bool requireSafeNegotiation =
+          Preferences::GetBool("security.ssl.require_safe_negotiation",
+                               REQUIRE_SAFE_NEGOTIATION_DEFAULT);
+        SSL_OptionSetDefault(SSL_REQUIRE_SAFE_NEGOTIATION, requireSafeNegotiation);
+      } else if (prefName.Equals("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref")) {
+        bool allowUnrestrictedRenego =
+          Preferences::GetBool("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref",
+                               ALLOW_UNRESTRICTED_RENEGO_DEFAULT);
+        SSL_OptionSetDefault(SSL_ENABLE_RENEGOTIATION,
+                             allowUnrestrictedRenego ?
+                             SSL_RENEGOTIATE_UNRESTRICTED :
+                             SSL_RENEGOTIATE_REQUIRES_XTN);
+#ifdef SSL_ENABLE_FALSE_START // Requires NSS 3.12.8
+      } else if (prefName.Equals("security.ssl.enable_false_start")) {
+        bool falseStartEnabled = Preferences::GetBool("security.ssl.enable_false_start",
+                                                      FALSE_START_ENABLED_DEFAULT);
+        SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, falseStartEnabled);
+#endif
+      } else if (prefName.Equals("network.ntlm.send-lm-response")) {
+        bool sendLM = Preferences::GetBool("network.ntlm.send-lm-response",
+                                           SEND_LM_DEFAULT);
+        nsNTLMAuthModule::SetSendLM(sendLM);
+      } else {
+        /* Look through the cipher table and set according to pref setting */
+        bool cipherEnabled;
+        for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
+          if (prefName.Equals(cp->pref)) {
+            cipherEnabled = Preferences::GetBool(cp->pref, CIPHER_ENABLED_DEFAULT);
+            SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
+            clearSessionCache = true;
+            break;
+          }
+        }
+      }
+      if (clearSessionCache)
+        SSL_ClearSessionCache();
+    }
+    return NS_OK;
+  }
+
+  static bool
+  StartObserve() {
+    // Register an observer so we can inform NSS when these prefs change
+    if (mCipherSettingsObserver)
+      return false;
+
+    mCipherSettingsObserver = new CipherSettingsObserver();
+    Preferences::AddWeakObserver(mCipherSettingsObserver, "security.");
+
+    SSL_OptionSetDefault(SSL_ENABLE_SSL2, false);
+    SSL_OptionSetDefault(SSL_V2_COMPATIBLE_HELLO, false);
+
+    bool md5Enabled = Preferences::GetBool("security.enable_md5_signatures",
+                                           MD5_ENABLED_DEFAULT);
+    configureMD5(md5Enabled);
+
+    // Configure TLS session tickets
+    bool tlsSessionTicketsEnabled =
+      Preferences::GetBool("security.enable_tls_session_tickets",
+                           TLS_SESSION_TICKETS_ENABLED_DEFAULT);
+    SSL_OptionSetDefault(SSL_ENABLE_SESSION_TICKETS, tlsSessionTicketsEnabled);
+
+    bool requireSafeNegotiation =
+      Preferences::GetBool("security.ssl.require_safe_negotiation",
+                           REQUIRE_SAFE_NEGOTIATION_DEFAULT);
+    SSL_OptionSetDefault(SSL_REQUIRE_SAFE_NEGOTIATION, requireSafeNegotiation);
+
+    bool allowUnrestrictedRenego =
+      Preferences::GetBool("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref",
+                           ALLOW_UNRESTRICTED_RENEGO_DEFAULT);
+    SSL_OptionSetDefault(SSL_ENABLE_RENEGOTIATION,
+                         allowUnrestrictedRenego ?
+                         SSL_RENEGOTIATE_UNRESTRICTED :
+                         SSL_RENEGOTIATE_REQUIRES_XTN);
+
+#ifdef SSL_ENABLE_FALSE_START // Requires NSS 3.12.8
+    bool falseStartEnabled = Preferences::GetBool("security.ssl.enable_false_start",
+                                                  FALSE_START_ENABLED_DEFAULT);
+    SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, falseStartEnabled);
+#endif
+
+    // Disable any ciphers that NSS might have enabled by default
+    for (uint16_t i = 0; i < SSL_NumImplementedCiphers; ++i) {
+      uint16_t cipher_id = SSL_ImplementedCiphers[i];
+      SSL_CipherPrefSetDefault(cipher_id, false);
+    }
+
+    bool cipherEnabled;
+    // Now only set SSL/TLS ciphers we knew about at compile time
+    for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
+      cipherEnabled = Preferences::GetBool(cp->pref, CIPHER_ENABLED_DEFAULT);
+      SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
+    }
+
+    // Enable ciphers for PKCS#12
+    SEC_PKCS12EnableCipher(PKCS12_RC4_40, 1);
+    SEC_PKCS12EnableCipher(PKCS12_RC4_128, 1);
+    SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_40, 1);
+    SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_128, 1);
+    SEC_PKCS12EnableCipher(PKCS12_DES_56, 1);
+    SEC_PKCS12EnableCipher(PKCS12_DES_EDE3_168, 1);
+    SEC_PKCS12SetPreferredCipher(PKCS12_DES_EDE3_168, 1);
+    PORT_SetUCS2_ASCIIConversionFunction(pip_ucs2_ascii_conversion_fn);
+
+    return true;
+  }
+
+  static void
+  StopObserve() {
+    if (mCipherSettingsObserver) {
+      Preferences::RemoveObserver(mCipherSettingsObserver, "security.");
+    }
+    mCipherSettingsObserver = nullptr;
+  }
+
+private:
+  static nsCOMPtr<nsIObserver> mCipherSettingsObserver;
+  CipherSettingsObserver() {}
+};
+
+NS_IMPL_ISUPPORTS2(CipherSettingsObserver,
+                   nsIObserver,
+                   nsISupportsWeakReference)
+nsCOMPtr<nsIObserver> CipherSettingsObserver::mCipherSettingsObserver;
+} // anonymous namespace
+
+namespace mozilla {
+namespace psm {
+bool
+InitializeCipherSuite()
+{
+  return CipherSettingsObserver::StartObserve();
+}
+} // namespace psm
+} // namespace mozilla
 
 nsresult
 nsNSSComponent::InitializeNSS(bool showWarningBox)
@@ -1177,11 +1344,8 @@ nsNSSComponent::InitializeNSS(bool showWarningBox)
 
       SharedSSLState::GlobalInit();
 
-      // Register an observer so we can inform NSS when these prefs change
+      // Handle preference changes which affect NSS component's state.
       Preferences::AddStrongObserver(this, "security.");
-
-      SSL_OptionSetDefault(SSL_ENABLE_SSL2, false);
-      SSL_OptionSetDefault(SSL_V2_COMPATIBLE_HELLO, false);
 
       rv = setEnabledTLSVersions();
       if (NS_FAILED(rv)) {
@@ -1189,58 +1353,7 @@ nsNSSComponent::InitializeNSS(bool showWarningBox)
         return NS_ERROR_UNEXPECTED;
       }
 
-      bool md5Enabled = Preferences::GetBool("security.enable_md5_signatures",
-                                             MD5_ENABLED_DEFAULT);
-      configureMD5(md5Enabled);
-
-      // Configure TLS session tickets
-      bool tlsSessionTicketsEnabled =
-        Preferences::GetBool("security.enable_tls_session_tickets",
-                             TLS_SESSION_TICKETS_ENABLED_DEFAULT);
-      SSL_OptionSetDefault(SSL_ENABLE_SESSION_TICKETS, tlsSessionTicketsEnabled);
-
-      bool requireSafeNegotiation =
-        Preferences::GetBool("security.ssl.require_safe_negotiation",
-                             REQUIRE_SAFE_NEGOTIATION_DEFAULT);
-      SSL_OptionSetDefault(SSL_REQUIRE_SAFE_NEGOTIATION, requireSafeNegotiation);
-
-      bool allowUnrestrictedRenego =
-        Preferences::GetBool("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref",
-                             ALLOW_UNRESTRICTED_RENEGO_DEFAULT);
-      SSL_OptionSetDefault(SSL_ENABLE_RENEGOTIATION,
-                           allowUnrestrictedRenego ?
-                             SSL_RENEGOTIATE_UNRESTRICTED :
-                             SSL_RENEGOTIATE_REQUIRES_XTN);
-
-#ifdef SSL_ENABLE_FALSE_START // Requires NSS 3.12.8
-      bool falseStartEnabled = Preferences::GetBool("security.ssl.enable_false_start",
-                                                    FALSE_START_ENABLED_DEFAULT);
-      SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, falseStartEnabled);
-#endif
-
-      // Disable any ciphers that NSS might have enabled by default
-      for (uint16_t i = 0; i < SSL_NumImplementedCiphers; ++i)
-      {
-        uint16_t cipher_id = SSL_ImplementedCiphers[i];
-        SSL_CipherPrefSetDefault(cipher_id, false);
-      }
-
-      bool cipherEnabled;
-      // Now only set SSL/TLS ciphers we knew about at compile time
-      for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
-        cipherEnabled = Preferences::GetBool(cp->pref, CIPHER_ENABLED_DEFAULT);
-        SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
-      }
-
-      // Enable ciphers for PKCS#12
-      SEC_PKCS12EnableCipher(PKCS12_RC4_40, 1);
-      SEC_PKCS12EnableCipher(PKCS12_RC4_128, 1);
-      SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_40, 1);
-      SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_128, 1);
-      SEC_PKCS12EnableCipher(PKCS12_DES_56, 1);
-      SEC_PKCS12EnableCipher(PKCS12_DES_EDE3_168, 1);
-      SEC_PKCS12SetPreferredCipher(PKCS12_DES_EDE3_168, 1);
-      PORT_SetUCS2_ASCIIConversionFunction(pip_ucs2_ascii_conversion_fn);
+      NS_ENSURE_TRUE(InitializeCipherSuite(), NS_ERROR_FAILURE);
 
       // dynamic options from prefs
       setValidationOptions();
@@ -1289,6 +1402,8 @@ nsNSSComponent::ShutdownNSS()
     PK11_SetPasswordFunc((PK11PasswordFunc)nullptr);
     mHttpForNSS.unregisterHttpClient();
 
+    CipherSettingsObserver::StopObserve();
+
     Preferences::RemoveObserver(this, "security.");
 
 #ifndef MOZ_DISABLE_CRYPTOLEGACY
@@ -1310,8 +1425,6 @@ nsNSSComponent::ShutdownNSS()
     }
   }
 }
-
-#define SEND_LM_DEFAULT false
 
 NS_IMETHODIMP
 nsNSSComponent::Init()
@@ -1617,7 +1730,6 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
     }
   }
   else if (nsCRT::strcmp(aTopic, NS_PREFBRANCH_PREFCHANGE_TOPIC_ID) == 0) { 
-    nsNSSShutDownPreventionLock locker;
     bool clearSessionCache = false;
     NS_ConvertUTF16toUTF8  prefName(someData);
 
@@ -1625,35 +1737,6 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
         prefName.Equals("security.tls.version.max")) {
       (void) setEnabledTLSVersions();
       clearSessionCache = true;
-    } else if (prefName.Equals("security.enable_md5_signatures")) {
-      bool md5Enabled = Preferences::GetBool("security.enable_md5_signatures",
-                                             MD5_ENABLED_DEFAULT);
-      configureMD5(md5Enabled);
-      clearSessionCache = true;
-    } else if (prefName.Equals("security.enable_tls_session_tickets")) {
-      bool tlsSessionTicketsEnabled =
-        Preferences::GetBool("security.enable_tls_session_tickets",
-                             TLS_SESSION_TICKETS_ENABLED_DEFAULT);
-      SSL_OptionSetDefault(SSL_ENABLE_SESSION_TICKETS, tlsSessionTicketsEnabled);
-    } else if (prefName.Equals("security.ssl.require_safe_negotiation")) {
-      bool requireSafeNegotiation =
-        Preferences::GetBool("security.ssl.require_safe_negotiation",
-                             REQUIRE_SAFE_NEGOTIATION_DEFAULT);
-      SSL_OptionSetDefault(SSL_REQUIRE_SAFE_NEGOTIATION, requireSafeNegotiation);
-    } else if (prefName.Equals("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref")) {
-      bool allowUnrestrictedRenego =
-        Preferences::GetBool("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref",
-                             ALLOW_UNRESTRICTED_RENEGO_DEFAULT);
-      SSL_OptionSetDefault(SSL_ENABLE_RENEGOTIATION,
-                           allowUnrestrictedRenego ?
-                             SSL_RENEGOTIATE_UNRESTRICTED :
-                             SSL_RENEGOTIATE_REQUIRES_XTN);
-#ifdef SSL_ENABLE_FALSE_START // Requires NSS 3.12.8
-    } else if (prefName.Equals("security.ssl.enable_false_start")) {
-      bool falseStartEnabled = Preferences::GetBool("security.ssl.enable_false_start",
-                                                    FALSE_START_ENABLED_DEFAULT);
-      SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, falseStartEnabled);
-#endif
     } else if (prefName.Equals("security.OCSP.enabled")
                || prefName.Equals("security.CRL_download.enabled")
                || prefName.Equals("security.fresh_revocation_info.require")
@@ -1663,21 +1746,6 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
                || prefName.Equals("security.ssl.enable_ocsp_stapling")) {
       MutexAutoLock lock(mutex);
       setValidationOptions();
-    } else if (prefName.Equals("network.ntlm.send-lm-response")) {
-      bool sendLM = Preferences::GetBool("network.ntlm.send-lm-response",
-                                         SEND_LM_DEFAULT);
-      nsNTLMAuthModule::SetSendLM(sendLM);
-    } else {
-      /* Look through the cipher table and set according to pref setting */
-      bool cipherEnabled;
-      for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
-        if (prefName.Equals(cp->pref)) {
-          cipherEnabled = Preferences::GetBool(cp->pref, CIPHER_ENABLED_DEFAULT);
-          SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
-          clearSessionCache = true;
-          break;
-        }
-      }
     }
     if (clearSessionCache)
       SSL_ClearSessionCache();
