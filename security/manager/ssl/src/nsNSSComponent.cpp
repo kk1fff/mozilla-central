@@ -18,6 +18,7 @@
 #include "nsICertOverrideService.h"
 #include "mozilla/Preferences.h"
 #include "nsThreadUtils.h"
+#include "mozilla/PublicSSL.h"
 
 #ifndef MOZ_DISABLE_CRYPTOLEGACY
 #include "nsIDOMNode.h"
@@ -1221,29 +1222,7 @@ nsNSSComponent::InitializeNSS(bool showWarningBox)
       SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, falseStartEnabled);
 #endif
 
-      // Disable any ciphers that NSS might have enabled by default
-      for (uint16_t i = 0; i < SSL_NumImplementedCiphers; ++i)
-      {
-        uint16_t cipher_id = SSL_ImplementedCiphers[i];
-        SSL_CipherPrefSetDefault(cipher_id, false);
-      }
-
-      bool cipherEnabled;
-      // Now only set SSL/TLS ciphers we knew about at compile time
-      for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
-        cipherEnabled = Preferences::GetBool(cp->pref, CIPHER_ENABLED_DEFAULT);
-        SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
-      }
-
-      // Enable ciphers for PKCS#12
-      SEC_PKCS12EnableCipher(PKCS12_RC4_40, 1);
-      SEC_PKCS12EnableCipher(PKCS12_RC4_128, 1);
-      SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_40, 1);
-      SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_128, 1);
-      SEC_PKCS12EnableCipher(PKCS12_DES_56, 1);
-      SEC_PKCS12EnableCipher(PKCS12_DES_EDE3_168, 1);
-      SEC_PKCS12SetPreferredCipher(PKCS12_DES_EDE3_168, 1);
-      PORT_SetUCS2_ASCIIConversionFunction(pip_ucs2_ascii_conversion_fn);
+      InitializeCipherSuite();
 
       // dynamic options from prefs
       setValidationOptions();
@@ -1968,3 +1947,32 @@ setPassword(PK11SlotInfo *slot, nsIInterfaceRequestor *ctx)
  loser:
   return rv;
 }
+
+namespace mozilla {
+namespace psm {
+void InitializeCipherSuite() {
+  // Disable any ciphers that NSS might have enabled by default
+  for (uint16_t i = 0; i < SSL_NumImplementedCiphers; ++i) {
+    uint16_t cipher_id = SSL_ImplementedCiphers[i];
+    SSL_CipherPrefSetDefault(cipher_id, false);
+  }
+
+  bool cipherEnabled;
+  // Now only set SSL/TLS ciphers we knew about at compile time
+  for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
+    cipherEnabled = Preferences::GetBool(cp->pref, CIPHER_ENABLED_DEFAULT);
+    SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
+  }
+
+  // Enable ciphers for PKCS#12
+  SEC_PKCS12EnableCipher(PKCS12_RC4_40, 1);
+  SEC_PKCS12EnableCipher(PKCS12_RC4_128, 1);
+  SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_40, 1);
+  SEC_PKCS12EnableCipher(PKCS12_RC2_CBC_128, 1);
+  SEC_PKCS12EnableCipher(PKCS12_DES_56, 1);
+  SEC_PKCS12EnableCipher(PKCS12_DES_EDE3_168, 1);
+  SEC_PKCS12SetPreferredCipher(PKCS12_DES_EDE3_168, 1);
+  PORT_SetUCS2_ASCIIConversionFunction(pip_ucs2_ascii_conversion_fn);
+}
+} // namespace psm
+} // namespace mozilla
