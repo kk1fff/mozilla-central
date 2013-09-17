@@ -7,6 +7,8 @@
 #ifndef mozilla_SSL_h
 #define mozilla_SSL_h
 
+#include "nsError.h"
+
 namespace mozilla {
 
 void ClearPrivateSSLState();
@@ -15,6 +17,7 @@ namespace psm {
 
 void InitializeSSLServerCertVerificationThreads();
 void StopSSLServerCertVerificationThreads();
+nsresult InitializeCipherSuite();
 
 } //namespace psm
 } // namespace mozilla
