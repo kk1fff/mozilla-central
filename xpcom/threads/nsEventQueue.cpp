@@ -8,6 +8,9 @@
 #include "nsAutoPtr.h"
 #include "prlog.h"
 #include "nsThreadUtils.h"
+#include "prthread.h"
+#include <unistd.h>
+#include <sys/syscall.h>
 
 using namespace mozilla;
 
@@ -47,7 +50,7 @@ nsEventQueue::GetEvent(bool mayWait, nsIRunnable **result)
 {
   {
     ReentrantMonitorAutoEnter mon(mReentrantMonitor);
-    
+    pid_t tid = syscall(__NR_gettid);
     while (IsEmpty()) {
       if (!mayWait) {
         if (result)
@@ -55,7 +58,9 @@ nsEventQueue::GetEvent(bool mayWait, nsIRunnable **result)
         return false;
       }
       LOG(("EVENTQ(%p): wait begin\n", this)); 
+      printf_stderr("Patrick: before waiting, this %p, tid %d", this, tid);
       mon.Wait();
+      printf_stderr("Patrick: end waiting, this %p, tid %d", this, tid);
       LOG(("EVENTQ(%p): wait end\n", this)); 
     }
     

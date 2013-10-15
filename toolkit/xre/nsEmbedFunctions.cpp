@@ -281,9 +281,12 @@ SetTaskbarGroupId(const nsString& aId)
 void
 OnFinishNuwaPreparation(nsITimer *aTimer, void *aClosure)
 {
+  printf_stderr("Patrick: OnFinishNuwaPreparation");
     NS_ASSERTION(MakeNuwaProcess != nullptr,
 		 "MakeNuwaProcess() is not available!");
+  printf_stderr("Patrick: about to MakeNuwaProcess");
     MakeNuwaProcess();
+  printf_stderr("Patrick: after MakeNuwaProcess");
 }
 #endif
 
@@ -535,10 +538,12 @@ XRE_InitChildProcess(int aArgc,
       }
 
 #ifdef MOZ_NUWA_PROCESS
+      printf_stderr("Patrick maybe turn this process into nuwa");
       nsCOMPtr<nsITimer> timer;
       if (aProcess == GeckoProcessType_Content &&
           CommandLine::ForCurrentProcess()->HasSwitch(L"nuwa")) {
         // Wait the Nuwa process for NUWA_PREPARATION_TIME ms.
+        printf_stderr("Patrick ok, make this process nuwa process.");
         timer = do_CreateInstance(NS_TIMER_CONTRACTID);
         rv = timer->InitWithFuncCallback(OnFinishNuwaPreparation,
                                          nullptr,

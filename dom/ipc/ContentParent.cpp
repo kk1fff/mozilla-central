@@ -349,6 +349,8 @@ ContentParent::RunNuwaProcess()
         NS_RUNTIMEABORT("sNuwaProcess is created twice.");
     }
 
+    printf_stderr("Patrick: RunNuwaProcess");
+
     sNuwaProcess =
         new ContentParent(/* aApp = */ nullptr,
                           /* aIsForBrowser = */ false,
@@ -467,6 +469,7 @@ MaybeForgetSpare(ContentParent* aContent)
 /*static*/ already_AddRefed<ContentParent>
 ContentParent::PreallocateAppProcess()
 {
+    printf_stderr("Patrick create PreallocateAppProcess\n");
     nsRefPtr<ContentParent> process =
         new ContentParent(/* app = */ nullptr,
                           /* isForBrowserElement = */ false,
@@ -1426,6 +1429,7 @@ ContentParent::ContentParent(mozIApplication* aApp,
 
     std::vector<std::string> extraArgs;
     if (aIsNuwaProcess) {
+        printf_stderr("Patrick add -nuwa in parameter.");
         extraArgs.push_back("-nuwa");
     }
     mSubprocess->LaunchAndWaitForProcessHandle(extraArgs);
@@ -1962,6 +1966,19 @@ ContentParent::RecvNuwaReady()
     ProcessPriorityManager::SetProcessPriority(sNuwaProcess,
                                                hal::PROCESS_PRIORITY_FOREGROUND);
     sNuwaReady = true;
+    printf_stderr("Patrick RecvNuwaReady");
+    /* if in test */ {
+        // Broadcast "TEST-ONLY:nuwa-ready" to all cpmms
+        nsCOMPtr<nsIMessageBroadcaster> ppmm = 
+            do_GetService("@mozilla.org/parentprocessmessagemanager;1");
+        AutoJSContext cx;
+        ppmm->BroadcastAsyncMessage(NS_LITERAL_STRING("TEST-ONLY:nuwa-ready"),
+                                    JSVAL_NULL,
+                                    JSVAL_NULL,
+                                    cx,
+                                    1);
+    }
+
     SendNuwaFork();
     return true;
 }

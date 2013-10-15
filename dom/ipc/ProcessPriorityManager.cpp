@@ -412,6 +412,8 @@ ProcessPriorityManagerImpl::GetParticularProcessPriorityManager(
     pppm->Init();
     mParticularManagers.Put(aContentParent->ChildID(), pppm);
 
+    printf_stderr("Patrick: about to fire process-created\n");
+
     FireTestOnlyObserverNotification("process-created",
       nsPrintfCString("%lld", aContentParent->ChildID()));
   }

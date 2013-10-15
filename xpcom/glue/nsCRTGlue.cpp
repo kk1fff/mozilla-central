@@ -293,7 +293,7 @@ printf_stderr(const char *fmt, ...)
   fclose(fp);
 }
 #elif defined(ANDROID)
-void
+NS_EXPORT void
 printf_stderr(const char *fmt, ...)
 {
   va_list args;
@@ -302,7 +302,7 @@ printf_stderr(const char *fmt, ...)
   va_end(args);
 }
 #else
-void
+NS_EXPORT void
 printf_stderr(const char *fmt, ...)
 {
   va_list args;

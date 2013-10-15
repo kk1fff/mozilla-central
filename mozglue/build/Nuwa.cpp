@@ -215,6 +215,26 @@ static pthread_mutex_t sThreadFreezeLock = PTHREAD_MUTEX_INITIALIZER;
 static LinkedList<thread_info_t> sAllThreads;
 static int sThreadCount = 0;
 static int sThreadFreezeCount = 0;
+int inc_sThreadFreezeCount() {
+  void (*printf_stderr)(const char *fmt, ...) = (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  sThreadFreezeCount++;
+  printf_stderr("Patrick: inc tid %d.", gettid());
+  return sThreadFreezeCount;
+}
+
+int dec_sThreadFreezeCount() {
+  void (*printf_stderr)(const char *fmt, ...) = (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  sThreadFreezeCount--;
+  printf_stderr("Patrick: dec tid %d.", gettid());
+  return sThreadFreezeCount;
+}
+
+int logFreeze() {
+  void (*printf_stderr)(const char *fmt, ...) = (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("Patrick: Freezing, tid = %d.", gettid());
+  return sThreadFreezeCount;
+}
+
 /**
  * This mutex protects the access to thread info:
  * sAllThreads, sThreadCount, sThreadFreezeCount, sRecreateVIPCount.
@@ -549,13 +569,22 @@ thread_create_startup(void *arg) {
   return r;
 }
 
+static int canGo = 20;
+
 extern "C" MFBT_API int
 __wrap_pthread_create(pthread_t *thread,
                       const pthread_attr_t *attr,
                       void *(*start_routine) (void *),
                       void *arg) {
+  void (*printf_stderr)(const char *fmt, ...) = (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
   if (!sIsNuwaProcess) {
     return REAL(pthread_create)(thread, attr, start_routine, arg);
+  }
+
+  while (canGo > 0) {
+    printf_stderr("Patrick: waiting canGo = %d", canGo);
+    // sleep(1);
+    canGo--;
   }
 
   thread_info_t *tinfo = thread_info_new();
@@ -797,12 +826,13 @@ static int sRecreateGatePassed = 0;
     if (!setjmp(tinfo->jmpEnv)) {                              \
       REAL(pthread_mutex_lock)(&sThreadCountLock);             \
       SaveTLSInfo(tinfo);                                      \
-      sThreadFreezeCount++;                                    \
+      inc_sThreadFreezeCount();                                \
       freezeCountChg = true;                                   \
       pthread_cond_signal(&sThreadChangeCond);                 \
       pthread_mutex_unlock(&sThreadCountLock);                 \
                                                                \
       if (sIsFreezing) {                                       \
+        logFreeze();                                           \
         REAL(pthread_mutex_lock)(&sThreadFreezeLock);          \
         /* Never return from the pthread_mutex_lock() call. */ \
         abort();                                               \
@@ -828,7 +858,7 @@ static int sRecreateGatePassed = 0;
     if (!setjmp(tinfo->jmpEnv)) {                              \
       REAL(pthread_mutex_lock)(&sThreadCountLock);             \
       SaveTLSInfo(tinfo);                                      \
-      sThreadFreezeCount++;                                    \
+      inc_sThreadFreezeCount();                                \
       sRecreateVIPCount++;                                     \
       freezeCountChg = true;                                   \
       pthread_cond_signal(&sThreadChangeCond);                 \
@@ -836,6 +866,7 @@ static int sRecreateGatePassed = 0;
                                                                \
       if (sIsFreezing) {                                       \
         freezePoint1 = true;                                   \
+        logFreeze();                                           \
         REAL(pthread_mutex_lock)(&sThreadFreezeLock);          \
         /* Never return from the pthread_mutex_lock() call. */ \
         abort();                                               \
@@ -852,11 +883,12 @@ static int sRecreateGatePassed = 0;
     if (sNuwaReady && sIsNuwaProcess) {                      \
       pthread_mutex_unlock(&sThreadCountLock);               \
       freezePoint2 = true;                                   \
+      logFreeze();                                           \
       REAL(pthread_mutex_lock)(&sThreadFreezeLock);          \
       /* Never return from the pthread_mutex_lock() call. */ \
       abort();                                               \
     }                                                        \
-    sThreadFreezeCount--;                                    \
+    dec_sThreadFreezeCount();                                \
     pthread_cond_signal(&sThreadChangeCond);                 \
     pthread_mutex_unlock(&sThreadCountLock);                 \
   }
@@ -867,11 +899,12 @@ static int sRecreateGatePassed = 0;
     if (sNuwaReady && sIsNuwaProcess) {                      \
       pthread_mutex_unlock(&sThreadCountLock);               \
       freezePoint2 = true;                                   \
+      logFreeze();                                           \
       REAL(pthread_mutex_lock)(&sThreadFreezeLock);          \
       /* Never return from the pthread_mutex_lock() call. */ \
       abort();                                               \
     }                                                        \
-    sThreadFreezeCount--;                                    \
+    dec_sThreadFreezeCount();                                \
     sRecreateVIPCount--;                                     \
     pthread_cond_signal(&sThreadChangeCond);                 \
     pthread_mutex_unlock(&sThreadCountLock);                 \
@@ -1563,12 +1596,19 @@ MFBT_API void
 MakeNuwaProcess() {
   void (*GetProtoFdInfos)(NuwaProtoFdInfo *, int, int *) = NULL;
   void (*OnNuwaProcessReady)() = NULL;
+  void (*printf_stderr)(const char *fmt, ...) = (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("Patrick: MakeNuwaProcess");
+
   sIsFreezing = true;
 
   REAL(pthread_mutex_lock)(&sThreadCountLock);
 
   // wait until all threads are frozen.
+  printf_stderr("Patrick (before loop) sThreadFreezeCount = %d, sThreadSkipCount = %d, sThreadCount = %d",
+                sThreadFreezeCount, sThreadSkipCount, sThreadCount);
   while ((sThreadFreezeCount + sThreadSkipCount) != sThreadCount) {
+    printf_stderr("Patrick sThreadFreezeCount = %d, sThreadSkipCount = %d, sThreadCount = %d",
+                  sThreadFreezeCount, sThreadSkipCount, sThreadCount);
     REAL(pthread_cond_wait)(&sThreadChangeCond, &sThreadCountLock);
   }
 
@@ -1580,6 +1620,7 @@ MakeNuwaProcess() {
 
   pthread_mutex_unlock(&sThreadCountLock);
 
+  printf_stderr("Patrick: OnNuwaProcessReady");
   OnNuwaProcessReady = (void (*)())dlsym(RTLD_DEFAULT, "OnNuwaProcessReady");
   OnNuwaProcessReady();
 
@@ -1643,7 +1684,7 @@ NuwaFreezeCurrentThread() {
     if (!setjmp(tinfo->jmpEnv)) {
       REAL(pthread_mutex_lock)(&sThreadCountLock);
       SaveTLSInfo(tinfo);
-      sThreadFreezeCount++;
+      inc_sThreadFreezeCount();
       pthread_cond_signal(&sThreadChangeCond);
       pthread_mutex_unlock(&sThreadCountLock);
 
@@ -1692,7 +1733,7 @@ NuwaCheckpointCurrentThread2(int setjmpCond) {
     if (!(tinfo->flags & TINFO_FLAG_NUWA_EXPLICIT_CHECKPOINT)) {
       tinfo->flags |= TINFO_FLAG_NUWA_EXPLICIT_CHECKPOINT;
       SaveTLSInfo(tinfo);
-      sThreadFreezeCount++;
+      inc_sThreadFreezeCount();
     }
     pthread_cond_signal(&sThreadChangeCond);
     pthread_mutex_unlock(&sThreadCountLock);

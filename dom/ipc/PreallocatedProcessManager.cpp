@@ -106,6 +106,7 @@ PreallocatedProcessManagerImpl::Observe(nsISupports* aSubject,
 void
 PreallocatedProcessManagerImpl::RereadPrefs()
 {
+  printf_stderr("Patrick RereadPrefs");
   if (Preferences::GetBool("dom.ipc.processPrelaunch.enabled")) {
     Enable();
   } else {
