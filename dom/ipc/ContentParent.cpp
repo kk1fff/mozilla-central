@@ -1962,6 +1962,18 @@ ContentParent::RecvNuwaReady()
     ProcessPriorityManager::SetProcessPriority(sNuwaProcess,
                                                hal::PROCESS_PRIORITY_FOREGROUND);
     sNuwaReady = true;
+    {
+        printf_stderr("Patrick NuwaReady");
+        nsCOMPtr<nsIMessageBroadcaster> ppmm = do_GetService("@mozilla.org/parentprocessmessagemanager;1");
+        nsresult rv = ppmm->BroadcastAsyncMessage(NS_LITERAL_STRING("TEST-ONLY:nuwa-ready"),
+                                                  JSVAL_NULL,
+                                                  JSVAL_NULL,
+                                                  AutoJSContext(),
+                                                  1);
+        if (NS_FAILED(rv)) {
+            printf_stderr("Patrick Fail to send TEST-ONLY:nuwa-ready");
+        }
+    }
     SendNuwaFork();
     return true;
 }

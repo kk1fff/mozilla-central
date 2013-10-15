@@ -242,6 +242,7 @@ MOCHITEST_FILES += \
 		test_browserElement_oop_DocumentFirstPaint.html \
 		test_browserElement_oop_VisibilityChange.html \
 		test_browserElement_oop_BrowserWindowResize.html \
+		test_Preallocated.html \
 	$(NULL)
 
 # Disabled until we fix bug 906096.
