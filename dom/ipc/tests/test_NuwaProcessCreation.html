@@ -1,0 +1,77 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+Test if Nuwa process created successfully.
+-->
+<head>
+  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
+</head>
+<body>
+
+<script type="application/javascript;version=1.7">
+"use strict";
+
+SimpleTest.waitForExplicitFinish();
+
+function TestLoader() {}
+
+TestLoader.prototype = {
+  _waitingTask: 0,
+  onTestReady: null,
+  unlockTestReady: function() {
+    this._waitingTask--;
+    this._maybeLoadTest();
+  },
+  lockTestReady: function() {
+    this._waitingTask++;
+  },
+  _maybeLoadTest: function() {
+    if (this._waitingTask == 0) {
+      this.onTestReady();
+    }
+  }
+}
+
+var testLoader = new TestLoader();
+testLoader.lockTestReady();
+window.addEventListener('load', function() {
+  testLoader.unlockTestReady();
+});
+
+function setPref(pref, value) {
+  testLoader.lockTestReady();
+  if (value !== undefined && value !== null) {
+    SpecialPowers.pushPrefEnv({'set': [[pref, value]]}, function() { testLoader.unlockTestReady(); });
+  } else {
+    SpecialPowers.pushPrefEnv({'clear': [[pref]]}, function() { testLoader.unlockTestReady(); });
+  }
+}
+
+setPref('dom.ipc.processPriorityManager.testMode', true);
+setPref('dom.ipc.processPriorityManager.enabled', true);
+setPref('dom.ipc.processPriorityManager.backgroundLRUPoolLevels', 2);
+
+function runTest()
+{
+  // Shutdown preallocated process.
+  SpecialPowers.setBoolPref('dom.ipc.processPrelaunch.enabled', false);
+  let cpmm = SpecialPowers.Cc["@mozilla.org/childprocessmessagemanager;1"]
+                          .getService(SpecialPowers.Ci.nsISyncMessageSender);
+  let msgHandler = {
+    receiveMessage: function receiveMessage() {
+      ok(true, "Got nuwa-ready");
+      cpmm.removeMessageListener("TEST-ONLY:nuwa-ready", msgHandler);
+      SimpleTest.finish();
+    }
+  };
+  cpmm.addMessageListener("TEST-ONLY:nuwa-ready", msgHandler);
+
+  // Setting this pref to true should cause us to prelaunch a process.
+  SpecialPowers.setBoolPref('dom.ipc.processPrelaunch.enabled', true);
+}
+
+testLoader.onTestReady = runTest;
+</script>
+</body>
+</html>
