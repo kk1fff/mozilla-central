@@ -71,6 +71,7 @@ function runTest()
   cpmm.addMessageListener("TEST-ONLY:nuwa-ready", {
     receiveMessage: function receiveMessage() {
       dump("Got TEST-ONLY:nuwa-ready");
+      ok(true, "Got nuwa-ready");
       SimpleTest.finish();
     }
   });
