@@ -214,7 +214,33 @@ static pthread_mutex_t sThreadFreezeLock = PTHREAD_MUTEX_INITIALIZER;
 
 static LinkedList<thread_info_t> sAllThreads;
 static int sThreadCount = 0;
+static int inc_sThreadCount() {
+  void (*printf_stderr)(const char *fmt, ...) =
+    (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("sThreadCount inc %d\n", gettid());
+  return sThreadCount++;
+}
+static int dec_sThreadCount() {
+  void (*printf_stderr)(const char *fmt, ...) =
+    (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("sThreadCount dec %d\n", gettid());
+  return sThreadCount--;
+}
+
 static int sThreadFreezeCount = 0;
+static int inc_sThreadFreezeCount() {
+  void (*printf_stderr)(const char *fmt, ...) =
+    (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("sThreadFreezeCount inc %d\n", gettid());
+  return sThreadFreezeCount++;
+}
+static int dec_sThreadFreezeCount() {
+  void (*printf_stderr)(const char *fmt, ...) =
+    (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("sThreadFreezeCount dec %d\n", gettid());
+  return sThreadFreezeCount--;
+}
+
 /**
  * This mutex protects the access to thread info:
  * sAllThreads, sThreadCount, sThreadFreezeCount, sRecreateVIPCount.
@@ -457,7 +483,7 @@ thread_info_new(void) {
   // Insert to the tail.
   sAllThreads.insertBack(tinfo);
 
-  sThreadCount++;
+  inc_sThreadCount();
   pthread_cond_signal(&sThreadChangeCond);
   pthread_mutex_unlock(&sThreadCountLock);
 
@@ -478,7 +504,7 @@ thread_info_cleanup(void *arg) {
   /* unlink tinfo from sAllThreads */
   tinfo->remove();
 
-  sThreadCount--;
+  dec_sThreadCount();
   pthread_cond_signal(&sThreadChangeCond);
   pthread_mutex_unlock(&sThreadCountLock);
 
@@ -518,6 +544,9 @@ _thread_create_startup(void *arg) {
 
 static void *
 thread_create_startup(void *arg) {
+  void (*printf_stderr)(const char *fmt, ...) =
+    (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("ThreadCreated: %d\n", gettid());
   /*
    * Dark Art!! Never try to do the same unless you are ABSOLUTELY sure of
    * what you are doing!
@@ -797,7 +826,7 @@ static int sRecreateGatePassed = 0;
     if (!setjmp(tinfo->jmpEnv)) {                              \
       REAL(pthread_mutex_lock)(&sThreadCountLock);             \
       SaveTLSInfo(tinfo);                                      \
-      sThreadFreezeCount++;                                    \
+      inc_sThreadFreezeCount();                                    \
       freezeCountChg = true;                                   \
       pthread_cond_signal(&sThreadChangeCond);                 \
       pthread_mutex_unlock(&sThreadCountLock);                 \
@@ -828,7 +857,7 @@ static int sRecreateGatePassed = 0;
     if (!setjmp(tinfo->jmpEnv)) {                              \
       REAL(pthread_mutex_lock)(&sThreadCountLock);             \
       SaveTLSInfo(tinfo);                                      \
-      sThreadFreezeCount++;                                    \
+      inc_sThreadFreezeCount();                                    \
       sRecreateVIPCount++;                                     \
       freezeCountChg = true;                                   \
       pthread_cond_signal(&sThreadChangeCond);                 \
@@ -856,7 +885,7 @@ static int sRecreateGatePassed = 0;
       /* Never return from the pthread_mutex_lock() call. */ \
       abort();                                               \
     }                                                        \
-    sThreadFreezeCount--;                                    \
+    dec_sThreadFreezeCount();                                    \
     pthread_cond_signal(&sThreadChangeCond);                 \
     pthread_mutex_unlock(&sThreadCountLock);                 \
   }
@@ -871,7 +900,7 @@ static int sRecreateGatePassed = 0;
       /* Never return from the pthread_mutex_lock() call. */ \
       abort();                                               \
     }                                                        \
-    sThreadFreezeCount--;                                    \
+    dec_sThreadFreezeCount();                                    \
     sRecreateVIPCount--;                                     \
     pthread_cond_signal(&sThreadChangeCond);                 \
     pthread_mutex_unlock(&sThreadCountLock);                 \
@@ -1563,6 +1592,8 @@ MFBT_API void
 MakeNuwaProcess() {
   void (*GetProtoFdInfos)(NuwaProtoFdInfo *, int, int *) = NULL;
   void (*OnNuwaProcessReady)() = NULL;
+  void (*printf_stderr)(const char *fmt, ...) = (void (*)(const char *fmt, ...))dlsym(RTLD_DEFAULT, "printf_stderr");
+  printf_stderr("Patrick: MakeNuwaProcess!!!!\n");
   sIsFreezing = true;
 
   REAL(pthread_mutex_lock)(&sThreadCountLock);
@@ -1643,7 +1674,7 @@ NuwaFreezeCurrentThread() {
     if (!setjmp(tinfo->jmpEnv)) {
       REAL(pthread_mutex_lock)(&sThreadCountLock);
       SaveTLSInfo(tinfo);
-      sThreadFreezeCount++;
+      inc_sThreadFreezeCount();
       pthread_cond_signal(&sThreadChangeCond);
       pthread_mutex_unlock(&sThreadCountLock);
 
@@ -1692,7 +1723,7 @@ NuwaCheckpointCurrentThread2(int setjmpCond) {
     if (!(tinfo->flags & TINFO_FLAG_NUWA_EXPLICIT_CHECKPOINT)) {
       tinfo->flags |= TINFO_FLAG_NUWA_EXPLICIT_CHECKPOINT;
       SaveTLSInfo(tinfo);
-      sThreadFreezeCount++;
+      inc_sThreadFreezeCount();
     }
     pthread_cond_signal(&sThreadChangeCond);
     pthread_mutex_unlock(&sThreadCountLock);

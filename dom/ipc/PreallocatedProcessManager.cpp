@@ -148,9 +148,12 @@ PreallocatedProcessManagerImpl::Observe(nsISupports* aSubject,
 void
 PreallocatedProcessManagerImpl::RereadPrefs()
 {
+  printf_stderr("Patrick: RereadPrefs\n");
   if (Preferences::GetBool("dom.ipc.processPrelaunch.enabled")) {
+    printf_stderr("Patrick: Enable\n");
     Enable();
   } else {
+    printf_stderr("Patrick: Disable\n");
     Disable();
   }
 }
@@ -235,13 +238,17 @@ PreallocatedProcessManagerImpl::ScheduleDelayedNuwaFork()
 void
 PreallocatedProcessManagerImpl::DelayedNuwaFork()
 {
+  printf_stderr("Patrick DelayedNuwaFork\n");
   MOZ_ASSERT(NS_IsMainThread());
 
   mPreallocateAppProcessTask = nullptr;
 
   if (!mIsNuwaReady) {
+    printf_stderr("Patrick: mIsNuwaReady is not ready");
     if (!mPreallocatedAppProcess) {
+      printf_stderr("Patrick: mPreallocatedAppProcess is null, create a new one\n");
       mPreallocatedAppProcess = ContentParent::RunNuwaProcess();
+      printf_stderr("Patrick: new nuwa process pid = %d\n", mPreallocatedAppProcess->Pid());
     }
     // else mPreallocatedAppProcess is starting. It will NuwaFork() when ready.
   } else if (mSpareProcesses.IsEmpty()) {
@@ -308,6 +315,7 @@ PreallocatedProcessManagerImpl::MaybeForgetSpare(ContentParent* aContent)
 void
 PreallocatedProcessManagerImpl::OnNuwaReady()
 {
+  printf_stderr("Patrick: OnNuwaReady\n");
   NS_ASSERTION(!mIsNuwaReady, "Multiple Nuwa processes created!");
   ProcessPriorityManager::SetProcessPriority(mPreallocatedAppProcess,
                                              hal::PROCESS_PRIORITY_FOREGROUND);
@@ -369,10 +377,12 @@ PreallocatedProcessManagerImpl::Disable()
 #ifdef MOZ_NUWA_PROCESS
     while (mSpareProcesses.Length() > 0){
       nsRefPtr<ContentParent> process = mSpareProcesses[0];
+      printf_stderr("Patrick: killing process: %d\n", process->Pid());
       process->Close();
       mSpareProcesses.RemoveElementAt(0);
     }
 #endif
+    printf_stderr("Patrick: killing nuwa process: %d\n", mPreallocatedAppProcess->Pid());
     mPreallocatedAppProcess->Close();
     mPreallocatedAppProcess = nullptr;
     mIsNuwaReady = false;

@@ -28,7 +28,7 @@ TestLoader.prototype = {
   },
   _maybeLoadTest: function() {
     if (this._waitingTask == 0) {
-      this.onTestReady();
+      setTimeout(this.onTestReady, 1000);
     }
   }
 }
@@ -63,7 +63,7 @@ function runTest()
     preallocationEnabledPref = null;
   }
 
-  dump("runTest: processPrelaunch: " + preallocationEnabledPref);
+  dump("runTest: processPrelaunch: " + preallocationEnabledPref + "\n");
 
   let cpmm = SpecialPowers.Cc["@mozilla.org/childprocessmessagemanager;1"]
                           .getService(SpecialPowers.Ci.nsISyncMessageSender);
@@ -76,7 +76,7 @@ function runTest()
     }
   });
 
-  dump("Begin to create process");
+  dump("Begin to create process\n");
 
   // Setting this pref to true should cause us to prelaunch a process.
   SpecialPowers.setBoolPref('dom.ipc.processPrelaunch.enabled', true);

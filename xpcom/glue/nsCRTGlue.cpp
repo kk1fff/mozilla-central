@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
-
+#include "mozilla/Types.h"
 #ifdef XP_WIN
 #include <io.h>
 #include <windows.h>
@@ -293,7 +293,7 @@ printf_stderr(const char *fmt, ...)
   fclose(fp);
 }
 #elif defined(ANDROID)
-void
+MOZ_EXPORT void
 printf_stderr(const char *fmt, ...)
 {
   va_list args;

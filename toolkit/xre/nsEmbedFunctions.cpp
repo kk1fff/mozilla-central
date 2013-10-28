@@ -528,6 +528,8 @@ XRE_InitChildProcess(int aArgc,
         NS_RUNTIMEABORT("Unknown main thread class");
       }
 
+      printf_stderr("Patrick before process init\n");
+      sleep(5);
       if (!process->Init()) {
         profiler_shutdown();
         NS_LogTerm();
@@ -538,6 +540,7 @@ XRE_InitChildProcess(int aArgc,
       nsCOMPtr<nsITimer> timer;
       if (aProcess == GeckoProcessType_Content &&
           CommandLine::ForCurrentProcess()->HasSwitch(L"nuwa")) {
+        printf_stderr("Patrick: content created with nuwa\n");
         // Wait the Nuwa process for NUWA_PREPARATION_TIME ms.
         timer = do_CreateInstance(NS_TIMER_CONTRACTID);
         rv = timer->InitWithFuncCallback(OnFinishNuwaPreparation,
