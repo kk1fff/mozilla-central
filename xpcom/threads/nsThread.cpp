@@ -18,6 +18,9 @@
 #include "mozilla/HangMonitor.h"
 #include "mozilla/Services.h"
 #include "nsXPCOMPrivate.h"
+#ifdef MOZ_NUWA_PROCESS
+#include "ipc/Nuwa.h"
+#endif
 
 #define HAVE_UALARM _BSD_SOURCE || (_XOPEN_SOURCE >= 500 ||                 \
                       _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED) &&           \
@@ -231,6 +234,13 @@ private:
 nsThread::ThreadFunc(void *arg)
 {
   nsThread *self = static_cast<nsThread *>(arg);  // strong reference
+#ifdef MOZ_NUWA_PROCESS
+  if (IsNuwaProcess()) {
+    NS_ASSERTION(NuwaMarkCurrentThread != nullptr,
+                 "NuwaMarkCurrentThread is undefined!");
+    NuwaMarkCurrentThread(nullptr, nullptr);
+  }
+#endif
   self->mThread = PR_GetCurrentThread();
 
   // Inform the ThreadManager
