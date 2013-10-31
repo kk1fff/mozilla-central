@@ -37,6 +37,7 @@
 // TODO(bcampen@mozilla.com): Big fat hack since the build system doesn't give
 // us a clean way to add object files to a single executable.
 #include "stunserver.cpp"
+#include "stun_udp_socket_filter.h"
 
 #define GTEST_HAS_RTTI 0
 #include "gtest/gtest.h"
@@ -900,6 +901,49 @@ class PrioritizerTest : public ::testing::Test {
   nr_interface_prioritizer *prioritizer_;
 };
 
+class PacketFilterTest : public ::testing::Test {
+ public:
+  PacketFilterTest():
+    filter_(nullptr) {}
+
+  void SetUp() {
+    nsCOMPtr<nsIUDPSocketFilterHandler> handler =
+      do_GetService(NS_STUN_UDP_SOCKET_FILTER_HANDLER_CONTRACTID);
+    handler->NewFilter(getter_AddRefs(filter_));
+  }
+
+  void TestIncoming(const uint8_t* data, uint32_t len,
+                    int from_addr, int from_port,
+                    bool expected_result) {
+    mozilla::net::NetAddr addr;
+    MakeNetAddr(&addr, from_addr, from_port);
+    bool result;
+    nsresult rv = filter_->FilterPacket(&addr, data, len, nsIUDPSocketFilter::SF_INCOMING, &result);
+    EXPECT_EQ(rv, NS_OK);
+    EXPECT_EQ(result, expected_result);
+  }
+
+  void TestOutgoing(const uint8_t* data, uint32_t len,
+                    int to_addr, int to_port,
+                    bool expected_result) {
+    mozilla::net::NetAddr addr;
+    MakeNetAddr(&addr, to_addr, to_port);
+    bool result;
+    nsresult rv = filter_->FilterPacket(&addr, data, len, nsIUDPSocketFilter::SF_OUTGOING, &result);
+    EXPECT_EQ(rv, NS_OK);
+    EXPECT_EQ(result, expected_result);
+  }
+
+ private:
+  void MakeNetAddr(mozilla::net::NetAddr* net_addr,
+                   uint32_t addr, uint16_t port) {
+    net_addr->inet.family = AF_INET;
+    net_addr->inet.ip = addr;
+    net_addr->inet.port = port;
+  }
+
+  nsCOMPtr<nsIUDPSocketFilter> filter_;
+};
 }  // end namespace
 
 TEST_F(IceGatherTest, TestGatherFakeStunServerHostnameNoResolver) {
@@ -1301,6 +1345,70 @@ TEST_F(PrioritizerTest, TestPrioritizer) {
   HasLowerPreference("7", "1");
   HasLowerPreference("1", "5");
   HasLowerPreference("5", "4");
+}
+
+TEST_F(PacketFilterTest, TestSendNonStunPacket) {
+  const char *data = "12345abcde";
+  TestOutgoing(reinterpret_cast<const unsigned char*>(data), sizeof(data), 123, 45, false);
+}
+
+TEST_F(PacketFilterTest, TestRecvNonStunPacket) {
+  const char *data = "12345abcde";
+  TestIncoming(reinterpret_cast<const unsigned char*>(data), sizeof(data), 123, 45, false);
+}
+
+TEST_F(PacketFilterTest, TestSendStunPacket) {
+  nr_stun_message *msg;
+  ASSERT_EQ(nr_stun_build_req_no_auth(NULL, &msg), 0);
+  ASSERT_EQ(nr_stun_encode_message(msg), 0);
+  TestOutgoing(msg->buffer, msg->length, 123, 45, true);
+  ASSERT_EQ(nr_stun_message_destroy(&msg), 0);
+}
+
+TEST_F(PacketFilterTest, TestRecvStunPacketWithoutAPendingId) {
+  nr_stun_message *msg;
+  ASSERT_EQ(nr_stun_build_req_no_auth(NULL, &msg), 0);
+
+  msg->header.id.octet[0] = 1;
+  ASSERT_EQ(nr_stun_encode_message(msg), 0);
+  TestOutgoing(msg->buffer, msg->length, 123, 45, true);
+
+  msg->header.id.octet[0] = 0;
+  ASSERT_EQ(nr_stun_encode_message(msg), 0);
+  TestIncoming(msg->buffer, msg->length, 123, 45, false);
+  ASSERT_EQ(nr_stun_message_destroy(&msg), 0);
+}
+
+TEST_F(PacketFilterTest, TestRecvStunPacketWithoutAPendingAddress) {
+  nr_stun_message *msg;
+  ASSERT_EQ(nr_stun_build_req_no_auth(NULL, &msg), 0);
+  ASSERT_EQ(nr_stun_encode_message(msg), 0);
+  TestOutgoing(msg->buffer, msg->length, 123, 45, true);
+  TestIncoming(msg->buffer, msg->length, 123, 46, false);
+  ASSERT_EQ(nr_stun_message_destroy(&msg), 0);
+}
+
+TEST_F(PacketFilterTest, TestRecvStunPacketWithPendingIdAndAddress) {
+  nr_stun_message *msg;
+  ASSERT_EQ(nr_stun_build_req_no_auth(NULL, &msg), 0);
+
+  ASSERT_EQ(nr_stun_encode_message(msg), 0);
+  TestOutgoing(msg->buffer, msg->length, 123, 45, true);
+  TestIncoming(msg->buffer, msg->length, 123, 45, true);
+  ASSERT_EQ(nr_stun_message_destroy(&msg), 0);
+
+  // Test whitelist by filtering non-stun packets.
+  const char *data = "12345abcde";
+
+  // 123:45 is white-listed.
+  TestOutgoing(reinterpret_cast<const unsigned char*>(data), sizeof(data), 123, 45, true);
+  TestIncoming(reinterpret_cast<const unsigned char*>(data), sizeof(data), 123, 45, true);
+
+  // Packets from and to other address are still disallowed.
+  TestOutgoing(reinterpret_cast<const unsigned char*>(data), sizeof(data), 123, 46, false);
+  TestIncoming(reinterpret_cast<const unsigned char*>(data), sizeof(data), 123, 46, false);
+  TestOutgoing(reinterpret_cast<const unsigned char*>(data), sizeof(data), 124, 45, false);
+  TestIncoming(reinterpret_cast<const unsigned char*>(data), sizeof(data), 124, 45, false);
 }
 
 static std::string get_environment(const char *name) {
