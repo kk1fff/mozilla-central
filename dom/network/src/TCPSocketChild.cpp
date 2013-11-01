@@ -116,12 +116,20 @@ TCPSocketChild::~TCPSocketChild()
 }
 
 bool
+TCPSocketChild::RecvUpdateBufferedAmount(const uint32_t& aBuffered)
+{
+  if (NS_FAILED(mSocket->UpdateBufferedAmount(aBuffered))) {
+    NS_ERROR("Shouldn't fail!");
+  }
+  return true;
+}
+
+bool
 TCPSocketChild::RecvCallback(const nsString& aType,
                              const CallbackData& aData,
-                             const nsString& aReadyState,
-                             const uint32_t& aBuffered)
+                             const nsString& aReadyState)
 {
-  if (NS_FAILED(mSocket->UpdateReadyStateAndBuffered(aReadyState, aBuffered)))
+  if (NS_FAILED(mSocket->UpdateReadyState(aReadyState)))
     NS_ERROR("Shouldn't fail!");
 
   nsresult rv = NS_ERROR_FAILURE;

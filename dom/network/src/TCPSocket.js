@@ -162,6 +162,9 @@ TCPSocket.prototype = {
   _waitingForStartTLS: false,
   _pendingDataAfterStartTLS: [],
 
+  // Used to notify when update bufferedAmount is updated.
+  _onUpdateBufferedAmount: null,
+
 #ifdef MOZ_WIDGET_GONK
   // Network statistics (Gonk-specific feature)
   _txBytes: 0,
@@ -242,6 +245,12 @@ TCPSocket.prototype = {
              .createTransport(options, 1, host, port, null);
   },
 
+  _sendBufferedAmount: function ts_sendBufferedAmount() {
+    if (this._onUpdateBufferedAmount) {
+      this._onUpdateBufferedAmount(this.bufferedAmount);
+    }
+  },
+
   _ensureCopying: function ts_ensureCopying() {
     let self = this;
     if (this._asyncCopierActive) {
@@ -254,6 +263,7 @@ TCPSocket.prototype = {
       onStopRequest: function ts_output_onStopRequest(request, context, status) {
         self._asyncCopierActive = false;
         self._multiplexStream.removeStream(0);
+        self._sendBufferedAmount();
 
         if (!Components.isSuccessCode(status)) {
           // Note that we can/will get an error here as well as in the
@@ -382,8 +392,11 @@ TCPSocket.prototype = {
     this.callListener(type);
   },
 
-  updateReadyStateAndBuffered: function ts_setReadyState(readyState, bufferedAmount) {
+  updateReadyState: function ts_updateReadyState(readyState) {
     this._readyState = readyState;
+  },
+
+  updateBufferedAmount: function ts_updateBufferedAmount(bufferedAmount) {
     this._bufferedAmount = bufferedAmount;
   },
 
@@ -418,6 +431,15 @@ TCPSocket.prototype = {
 #else
     // Do nothing because _appId only exists on Gonk-specific platform.
 #endif
+  },
+
+  setOnUpdateBufferedAmountHandler: function(aFunction) {
+    if (typeof(aFunction) == 'function') {
+      this._onUpdateBufferedAmount = aFunction;
+    } else {
+      throw new Error("only function can be passed to " +
+                      "setOnUpdateBufferedAmountHandler");
+    }
   },
 
   /* end nsITCPSocketInternal methods */
@@ -613,6 +635,7 @@ TCPSocket.prototype = {
     var newBufferedAmount = this.bufferedAmount + length;
     var bufferNotFull = newBufferedAmount < BUFFER_SIZE;
     if (this._inChild) {
+      this.updateBufferedAmount(newBufferedAmount);
       return bufferNotFull;
     }
 

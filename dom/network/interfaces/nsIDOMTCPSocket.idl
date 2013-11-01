@@ -215,7 +215,7 @@ interface nsIDOMTCPSocket : nsISupports
  * Needed to account for multiple possible types that can be provided to
  * the socket callbacks as arguments.
  */
-[scriptable, uuid(234c664c-3d6c-4859-b45c-4e9a98cb5bdc)]
+[scriptable, uuid(07d8b259-c9d3-4224-ba5f-25acbb9ddcc0)]
 interface nsITCPSocketInternal : nsISupports {
   // Trigger the callback for |type| and provide a DOMError() object with the given data
   void callListenerError(in DOMString type, in DOMString name);
@@ -229,8 +229,11 @@ interface nsITCPSocketInternal : nsISupports {
   // Trigger the callback for |type| with no argument
   void callListenerVoid(in DOMString type);
 
-  // Update the DOM object's readyState and bufferedAmount values with the provided data
-  void updateReadyStateAndBuffered(in DOMString readyState, in uint32_t bufferedAmount);
+  // Update the DOM object's readyState.
+  void updateReadyState(in DOMString readyState);
+
+  // Update the DOM object's bufferedAmount value.
+  void updateBufferedAmount(in uint32_t bufferedAmount);
 
   // Create a socket object on the parent side.
   // This is called in accepting any open request on the parent side.
@@ -259,6 +262,10 @@ interface nsITCPSocketInternal : nsISupports {
 
   // Set App ID.
   void setAppId(in unsigned long appId);
+
+  // Set a callback that handles the request from TCP socket parent when socket
+  // parent wants to notify that its bufferAmount is updated.
+  void setOnUpdateBufferedAmountHandler(in jsval handler);
 };
 
 /**

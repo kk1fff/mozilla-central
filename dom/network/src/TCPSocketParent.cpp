@@ -35,7 +35,7 @@ FireInteralError(mozilla::net::PTCPSocketParent* aActor, uint32_t aLineNo)
   mozilla::unused <<
       aActor->SendCallback(NS_LITERAL_STRING("onerror"),
                            TCPError(NS_LITERAL_STRING("InvalidStateError")),
-                           NS_LITERAL_STRING("connecting"), 0);
+                           NS_LITERAL_STRING("connecting"));
 }
 
 NS_IMPL_CYCLE_COLLECTION_2(TCPSocketParentBase, mSocket, mIntermediary)
@@ -195,8 +195,7 @@ TCPSocketParent::RecvClose()
 
 NS_IMETHODIMP
 TCPSocketParent::SendCallback(const nsAString& aType, const JS::Value& aDataVal,
-                              const nsAString& aReadyState, uint32_t aBuffered,
-                              JSContext* aCx)
+                              const nsAString& aReadyState, JSContext* aCx)
 {
   if (!mIPCOpen) {
     NS_WARNING("Dropping callback due to no IPC connection");
@@ -255,7 +254,7 @@ TCPSocketParent::SendCallback(const nsAString& aType, const JS::Value& aDataVal,
   }
   mozilla::unused <<
       PTCPSocketParent::SendCallback(nsString(aType), data,
-                                     nsString(aReadyState), aBuffered);
+                                     nsString(aReadyState));
   return NS_OK;
 }
 
@@ -266,6 +265,13 @@ TCPSocketParent::SetSocketAndIntermediary(nsIDOMTCPSocket *socket,
 {
   mSocket = socket;
   mIntermediary = intermediary;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+TCPSocketParent::SendUpdateBufferedAmount(uint32_t aBufferedAmount)
+{
+  mozilla::unused << PTCPSocketParent::SendUpdateBufferedAmount(aBufferedAmount);
   return NS_OK;
 }
 

@@ -43,8 +43,8 @@ parent:
   Close();
 
 child:
-  Callback(nsString type, CallbackData data,
-           nsString readyState, uint32_t bufferedAmount);
+  Callback(nsString type, CallbackData data, nsString readyState);
+  UpdateBufferedAmount(uint32_t bufferedAmount);
 
 both:
   RequestDelete();

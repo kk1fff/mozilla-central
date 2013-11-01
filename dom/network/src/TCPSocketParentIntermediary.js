@@ -28,7 +28,11 @@ TCPSocketParentIntermediary.prototype = {
         };
       }
     );
- },
+  },
+
+  _onUpdateBufferedAmountHandler: function(aParentSide, aBufferedAmount) {
+    aParentSide.sendUpdateBufferedAmount(aBufferedAmount);
+  },
 
   open: function(aParentSide, aHost, aPort, aUseSSL, aBinaryType, aAppId) {
     let baseSocket = Cc["@mozilla.org/tcp-socket;1"].createInstance(Ci.nsIDOMTCPSocket);
@@ -40,6 +44,10 @@ TCPSocketParentIntermediary.prototype = {
     if (socketInternal) {
       socketInternal.setAppId(aAppId);
     }
+
+    // Handle parent's request to update buffered amount.
+    socketInternal.setOnUpdateBufferedAmountHandler(
+      this._onUpdateBufferedAmountHandler.bind(this, aParentSide));
 
     // Handlers are set to the JS-implemented socket object on the parent side.
     this._setCallbacks(aParentSide, socket);
