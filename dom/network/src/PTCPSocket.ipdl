@@ -35,16 +35,34 @@ protocol PTCPSocket
   manager PNecko;
 
 parent:
+  // Message sent when child's open() is called. This message requests
+  // parent to create a TCPSocket to given |host| and |port|, 
   Open(nsString host, uint16_t port, bool useSSL, nsString binaryType);
-  Data(SendableData data);
+
+  // When child received data (send() is called), this message requrests
+  // parent to send data and update it's trackingNumber.
+  Data(SendableData data, uint32_t trackingNumber);
+
+  // Forward calling to child's upgradeToSecure() method to parent.
   StartTLS();
+
+  // Forward calling to child's send() method to parent.
   Suspend();
+
+  // Forward calling to child's resume() method to parent.
   Resume();
+
+  // Forward calling to child's close() method to parent.
   Close();
 
 child:
-  Callback(nsString type, CallbackData data,
-           nsString readyState, uint32_t bufferedAmount);
+  // Forward events that is dispatched by parent to child.
+  Callback(nsString type, CallbackData data, nsString readyState);
+
+  // Update child's bufferedAmount when parent's bufferedAmount is updated.
+  // trackingNumber is also passed back to child to ensure the bufferedAmount
+  // is updated after lastest send() invocation.
+  UpdateBufferedAmount(uint32_t bufferedAmount, uint32_t trackingNumber);
 
 both:
   RequestDelete();
