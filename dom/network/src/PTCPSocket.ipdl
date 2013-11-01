@@ -36,15 +36,15 @@ protocol PTCPSocket
 
 parent:
   Open(nsString host, uint16_t port, bool useSSL, nsString binaryType);
-  Data(SendableData data);
+  Data(SendableData data, uint32_t trackingNumber);
   StartTLS();
   Suspend();
   Resume();
   Close();
 
 child:
-  Callback(nsString type, CallbackData data,
-           nsString readyState, uint32_t bufferedAmount);
+  Callback(nsString type, CallbackData data, nsString readyState);
+  UpdateBufferedAmount(uint32_t bufferedAmount, uint32_t trackingNumber);
 
 both:
   RequestDelete();
