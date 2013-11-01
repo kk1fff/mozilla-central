@@ -149,7 +149,6 @@ TCPSocket.prototype = {
   _multiplexStreamCopier: null,
 
   _asyncCopierActive: false,
-  _waitingForDrain: false,
   _suspendCount: 0,
 
   // Reported parent process buffer
@@ -290,10 +289,7 @@ TCPSocket.prototype = {
             }
           }
 
-          if (self._waitingForDrain) {
-            self._waitingForDrain = false;
-            self.callListener("drain");
-          }
+          self.callListener("drain");
           if (self._readyState === kCLOSING) {
             self._socketOutputStream.close();
             self._readyState = kCLOSED;
@@ -654,15 +650,6 @@ TCPSocket.prototype = {
       this._pendingDataAfterStartTLS.push(new_stream);
     } else {
       this._multiplexStream.appendStream(new_stream);
-    }
-
-    if (newBufferedAmount >= BUFFER_SIZE) {
-      // If we buffered more than some arbitrary amount of data,
-      // (65535 right now) we should tell the caller so they can
-      // wait until ondrain is called if they so desire. Once all the
-      //buffered data has been written to the socket, ondrain is
-      // called.
-      this._waitingForDrain = true;
     }
 
     this._ensureCopying();
