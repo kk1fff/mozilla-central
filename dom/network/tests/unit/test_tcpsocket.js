@@ -32,7 +32,8 @@ const DATA_ARRAY = [0, 255, 254, 0, 1, 2, 3, 0, 255, 255, 254, 0],
       TYPED_DATA_ARRAY = new Uint8Array(DATA_ARRAY_BUFFER),
       HELLO_WORLD = "hlo wrld. ",
       BIG_ARRAY = new Array(65539),
-      BIG_ARRAY_2 = new Array(65539);
+      BIG_ARRAY_2 = new Array(65539),
+      MEDIUM_ARRAY = new Array(22000); // can send two MEDIUM_ARRAY before buffering.
 
 TYPED_DATA_ARRAY.set(DATA_ARRAY, 0);
 
@@ -47,6 +48,13 @@ const BIG_TYPED_ARRAY = new Uint8Array(BIG_ARRAY_BUFFER),
       BIG_TYPED_ARRAY_2 = new Uint8Array(BIG_ARRAY_BUFFER_2);
 BIG_TYPED_ARRAY.set(BIG_ARRAY);
 BIG_TYPED_ARRAY_2.set(BIG_ARRAY_2);
+
+for (var i_medium = 0; i_medium < MEDIUM_ARRAY.length; i_medium++) {
+  MEDIUM_ARRAY[i_medium] = Math.floor(Math.random() * 256);
+}
+const MEDIUM_ARRAY_BUFFER = new ArrayBuffer(MEDIUM_ARRAY.length);
+const MEDIUM_TYPED_ARRAY = new Uint8Array(MEDIUM_ARRAY_BUFFER);
+MEDIUM_TYPED_ARRAY.set(MEDIUM_ARRAY);
 
 const ServerSocket = CC("@mozilla.org/network/server-socket;1",
                         "nsIServerSocket",
@@ -500,6 +508,38 @@ function bufferTwice() {
   }
 }
 
+/**
+ * Test calling send in a loop and make socket buffers. bufferedAmount should
+ * increase each time we call send() successfully.
+ */
+function continueSend() {
+  let yays = makeJointSuccess(['serverclose', 'clientclose']);
+
+  let dataLength = MEDIUM_ARRAY.length;
+  let looped = 0;
+
+  while (sock.send(MEDIUM_ARRAY_BUFFER)) {
+    looped++;
+    do_check_eq(sock.bufferedAmount, dataLength * looped);
+  }
+
+  looped++;
+  do_check_eq(sock.bufferedAmount, dataLength * looped);
+
+  sock.ondrain = function() {
+    do_print("Got expected ondrain");
+    do_check_eq(sock.bufferedAmount, 0);
+    sock.close();
+  };
+
+  server.ondata = function() {
+    do_print("Got server.ondata");
+  };
+
+  sock.onclose = yays.clientclose;
+  server.onclose = yays.serverclose;
+}
+
 // - connect, data and events work both ways
 add_test(connectSock);
 add_test(sendData);
@@ -530,6 +570,10 @@ add_test(drainTwice);
 // send a buffer, get a drain, send a buffer, get a drain
 add_test(connectSock);
 add_test(bufferTwice);
+
+// send a buffer many times, observe bufferedAmount increase;
+add_test(connectSock);
+add_test(continueSend);
 
 // clean up
 add_test(cleanup);
