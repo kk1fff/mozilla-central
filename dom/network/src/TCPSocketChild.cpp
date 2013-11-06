@@ -116,9 +116,10 @@ TCPSocketChild::~TCPSocketChild()
 }
 
 bool
-TCPSocketChild::RecvUpdateBufferedAmount(const uint32_t& aBuffered)
+TCPSocketChild::RecvUpdateBufferedAmount(const uint32_t& aBuffered,
+                                         const uint32_t& aTrackingNumber)
 {
-  if (NS_FAILED(mSocket->UpdateBufferedAmount(aBuffered))) {
+  if (NS_FAILED(mSocket->UpdateBufferedAmount(aBuffered, aTrackingNumber))) {
     NS_ERROR("Shouldn't fail!");
   }
   return true;
@@ -198,6 +199,7 @@ NS_IMETHODIMP
 TCPSocketChild::Send(const JS::Value& aData,
                      uint32_t aByteOffset,
                      uint32_t aByteLength,
+                     uint32_t aTrackingNumber,
                      JSContext* aCx)
 {
   if (aData.isString()) {
@@ -205,7 +207,7 @@ TCPSocketChild::Send(const JS::Value& aData,
     nsDependentJSString str;
     bool ok = str.init(aCx, jsstr);
     NS_ENSURE_TRUE(ok, NS_ERROR_FAILURE);
-    SendData(str);
+    SendData(str, aTrackingNumber);
 
   } else {
     NS_ENSURE_TRUE(aData.isObject(), NS_ERROR_FAILURE);
@@ -224,7 +226,7 @@ TCPSocketChild::Send(const JS::Value& aData,
     }
     InfallibleTArray<uint8_t> arr;
     arr.SwapElements(fallibleArr);
-    SendData(arr);
+    SendData(arr, aTrackingNumber);
   }
   return NS_OK;
 }

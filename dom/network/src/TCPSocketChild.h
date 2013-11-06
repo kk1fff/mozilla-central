@@ -46,8 +46,8 @@ public:
                             const CallbackData& aData,
                             const nsString& aReadyState) MOZ_OVERRIDE;
   virtual bool RecvRequestDelete() MOZ_OVERRIDE;
-  virtual bool RecvUpdateBufferedAmount(
-    const uint32_t& aBufferred) MOZ_OVERRIDE;
+  virtual bool RecvUpdateBufferedAmount(const uint32_t& aBufferred,
+                                        const uint32_t& aTrackingNumber) MOZ_OVERRIDE;
 private:
   JSObject* mWindowObj;
 };

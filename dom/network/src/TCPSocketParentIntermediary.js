@@ -30,8 +30,8 @@ TCPSocketParentIntermediary.prototype = {
     );
   },
 
-  _onUpdateBufferedAmountHandler: function(aParentSide, aBufferedAmount) {
-    aParentSide.sendUpdateBufferedAmount(aBufferedAmount);
+  _onUpdateBufferedAmountHandler: function(aParentSide, aBufferedAmount, aTrackingNumber) {
+    aParentSide.sendUpdateBufferedAmount(aBufferedAmount, aTrackingNumber);
   },
 
   open: function(aParentSide, aHost, aPort, aUseSSL, aBinaryType, aAppId) {
@@ -87,12 +87,16 @@ TCPSocketParentIntermediary.prototype = {
     return serverSocket;
   },
 
-  sendString: function(aData) {
-    return this._socket.send(aData);
+  sendString: function(aData, aTrackingNumber) {
+    let socketInternal = this._socket.QueryInterface(Ci.nsITCPSocketInternal);
+    return socketInternal.sendFromChild(aData, null, null,
+                                        aTrackingNumber);
   },
 
-  sendArrayBuffer: function(aData) {
-    return this._socket.send(aData, 0, aData.byteLength);
+  sendArrayBuffer: function(aData, aTrackingNumber) {
+    let socketInternal = this._socket.QueryInterface(Ci.nsITCPSocketInternal);
+    return socketInternal.sendFromChild(aData, 0, aData.byteLength,
+                                      aTrackingNumber);
   },
 
   classID: Components.ID("{afa42841-a6cb-4a91-912f-93099f6a3d18}"),

@@ -164,6 +164,7 @@ TCPSocket.prototype = {
 
   // Used to notify when update bufferedAmount is updated.
   _onUpdateBufferedAmount: null,
+  _trackingNumber: 0,
 
 #ifdef MOZ_WIDGET_GONK
   // Network statistics (Gonk-specific feature)
@@ -247,7 +248,7 @@ TCPSocket.prototype = {
 
   _sendBufferedAmount: function ts_sendBufferedAmount() {
     if (this._onUpdateBufferedAmount) {
-      this._onUpdateBufferedAmount(this.bufferedAmount);
+      this._onUpdateBufferedAmount(this.bufferedAmount, this._trackingNumber);
     }
   },
 
@@ -290,7 +291,9 @@ TCPSocket.prototype = {
             }
           }
 
-          if (self._waitingForDrain) {
+          // If we have callback to update bufferedAmount, we let child to
+          // decide whether ondrain should be dispatched.
+          if (self._waitingForDrain && !self._onUpdateBufferedAmount) {
             self._waitingForDrain = false;
             self.callListener("drain");
           }
@@ -396,8 +399,17 @@ TCPSocket.prototype = {
     this._readyState = readyState;
   },
 
-  updateBufferedAmount: function ts_updateBufferedAmount(bufferedAmount) {
+  updateBufferedAmount: function ts_updateBufferedAmount(bufferedAmount, trackingNumber) {
+    if (trackingNumber != this._trackingNumber) {
+      return;
+    }
     this._bufferedAmount = bufferedAmount;
+    if (bufferedAmount == 0) {
+      if (this._waitingForDrain) {
+        this._waitingForDrain = false;
+        this.callListener("drain");
+      }
+    }
   },
 
   createAcceptedParent: function ts_createAcceptedParent(transport, binaryType) {
@@ -440,6 +452,11 @@ TCPSocket.prototype = {
       throw new Error("only function can be passed to " +
                       "setOnUpdateBufferedAmountHandler");
     }
+  },
+
+  sendFromChild: function(data, byteOffset, byteLength, trackingNumber) {
+    this._trackingNumber = trackingNumber;
+    this.send(data, byteOffset, byteLength);
   },
 
   /* end nsITCPSocketInternal methods */
@@ -627,7 +644,7 @@ TCPSocket.prototype = {
     }
 
     if (this._inChild) {
-      this._socketBridge.send(data, byteOffset, byteLength);
+      this._socketBridge.send(data, byteOffset, byteLength, ++this._trackingNumber);
     }
 
     let length = this._binaryType === "arraybuffer" ? byteLength : data.length;
@@ -635,7 +652,12 @@ TCPSocket.prototype = {
     var newBufferedAmount = this.bufferedAmount + length;
     var bufferNotFull = newBufferedAmount < BUFFER_SIZE;
     if (this._inChild) {
-      this.updateBufferedAmount(newBufferedAmount);
+      this._bufferedAmount = newBufferedAmount;
+      if (!bufferNotFull) {
+        // This make us return false, we should dispatch ondrain after buffered
+        // data are all sent.
+        this._waitingForDrain = true;
+      }
       return bufferNotFull;
     }
 

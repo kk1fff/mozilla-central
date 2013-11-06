@@ -36,12 +36,12 @@ interface nsITCPSocketParent : nsISupports
 
   // When parent's buffered amount is updated and it wants to inform child to
   // update the bufferedAmount as well.
-  void sendUpdateBufferedAmount(in uint32_t bufferedAmount);
+  void sendUpdateBufferedAmount(in uint32_t bufferedAmount, in uint32_t trackingNumber);
 };
 
 // Intermediate class to handle sending multiple possible data types
 // and kicking off the chrome process socket object's connection.
-[scriptable, uuid(be67b1b8-03b0-4171-a791-d004458021b6)]
+[scriptable, uuid(e0fbd555-3d77-4f83-8f82-adc2d5902464)]
 interface nsITCPSocketIntermediary : nsISupports {
   // Open the connection to the server with the given parameters
   nsIDOMTCPSocket open(in nsITCPSocketParent parent,
@@ -55,8 +55,8 @@ interface nsITCPSocketIntermediary : nsISupports {
                                in DOMString binaryType);
 
   // Send a basic string along the connection
-  void sendString(in DOMString data);
+  void sendString(in DOMString data, in uint32_t trackingNumber);
 
   // Send a typed array
-  void sendArrayBuffer(in jsval data);
+  void sendArrayBuffer(in jsval data, in uint32_t trackingNumber);
 };

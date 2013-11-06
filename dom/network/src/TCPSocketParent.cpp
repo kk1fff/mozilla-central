@@ -156,7 +156,8 @@ TCPSocketParent::RecvResume()
 }
 
 bool
-TCPSocketParent::RecvData(const SendableData& aData)
+TCPSocketParent::RecvData(const SendableData& aData,
+                          const uint32_t& aTrackingNumber)
 {
   NS_ENSURE_TRUE(mIntermediary, true);
 
@@ -168,13 +169,13 @@ TCPSocketParent::RecvData(const SendableData& aData)
       JS::Rooted<JS::Value> val(cx);
       JS::Rooted<JSObject*> obj(cx, mIntermediaryObj);
       IPC::DeserializeArrayBuffer(obj, aData.get_ArrayOfuint8_t(), &val);
-      rv = mIntermediary->SendArrayBuffer(val);
+      rv = mIntermediary->SendArrayBuffer(val, aTrackingNumber);
       NS_ENSURE_SUCCESS(rv, true);
       break;
     }
 
     case SendableData::TnsString:
-      rv = mIntermediary->SendString(aData.get_nsString());
+      rv = mIntermediary->SendString(aData.get_nsString(), aTrackingNumber);
       NS_ENSURE_SUCCESS(rv, true);
       break;
 
@@ -269,9 +270,11 @@ TCPSocketParent::SetSocketAndIntermediary(nsIDOMTCPSocket *socket,
 }
 
 NS_IMETHODIMP
-TCPSocketParent::SendUpdateBufferedAmount(uint32_t aBufferedAmount)
+TCPSocketParent::SendUpdateBufferedAmount(uint32_t aBufferedAmount,
+                                          uint32_t aTrackingNumber)
 {
-  mozilla::unused << PTCPSocketParent::SendUpdateBufferedAmount(aBufferedAmount);
+  mozilla::unused << PTCPSocketParent::SendUpdateBufferedAmount(aBufferedAmount,
+                                                                aTrackingNumber);
   return NS_OK;
 }
 
