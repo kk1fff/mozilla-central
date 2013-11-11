@@ -230,10 +230,17 @@ interface nsITCPSocketInternal : nsISupports {
   void callListenerVoid(in DOMString type);
 
   // Update the DOM object's readyState.
+  // @param readyState
+  //        new ready state to be set to TCPSocket.
   void updateReadyState(in DOMString readyState);
 
   // Update the DOM object's bufferedAmount value with a tracking number to
   // ensure the update request is sent after child's send() invocation.
+  // @param bufferedAmount
+  //        TCPSocket parent's bufferedAmount.
+  // @param trackingNumber
+  //        A number to ensure the bufferedAmount is updated after data
+  //        from child are sent to parent.
   void updateBufferedAmount(in uint32_t bufferedAmount,
                             in uint32_t trackingNumber);
 
@@ -265,8 +272,8 @@ interface nsITCPSocketInternal : nsISupports {
   // Set App ID.
   void setAppId(in unsigned long appId);
 
-  // Set a callback that handles the request from TCP socket parent when socket
-  // parent wants to notify that its bufferAmount is updated.
+  // Set a callback that handles the request from a TCP socket parent when that
+  // socket parent wants to notify that its bufferedAmount is updated.
   void setOnUpdateBufferedAmountHandler(in jsval handler);
 
   // Providing child process with ability to pass more argument to parent with

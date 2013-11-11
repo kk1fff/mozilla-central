@@ -169,13 +169,13 @@ TCPSocketParent::RecvData(const SendableData& aData,
       JS::Rooted<JS::Value> val(cx);
       JS::Rooted<JSObject*> obj(cx, mIntermediaryObj);
       IPC::DeserializeArrayBuffer(obj, aData.get_ArrayOfuint8_t(), &val);
-      rv = mIntermediary->SendArrayBuffer(val, aTrackingNumber);
+      rv = mIntermediary->RecvSendArrayBuffer(val, aTrackingNumber);
       NS_ENSURE_SUCCESS(rv, true);
       break;
     }
 
     case SendableData::TnsString:
-      rv = mIntermediary->SendString(aData.get_nsString(), aTrackingNumber);
+      rv = mIntermediary->RecvSendString(aData.get_nsString(), aTrackingNumber);
       NS_ENSURE_SUCCESS(rv, true);
       break;
 

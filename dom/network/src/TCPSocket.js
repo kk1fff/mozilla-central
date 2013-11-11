@@ -454,6 +454,10 @@ TCPSocket.prototype = {
     }
   },
 
+  /**
+   * Handle the requst of sending data and update trackingNumber from
+   * child.
+   */
   sendFromChild: function(data, byteOffset, byteLength, trackingNumber) {
     this._trackingNumber = trackingNumber;
     this.send(data, byteOffset, byteLength);
@@ -651,13 +655,20 @@ TCPSocket.prototype = {
 
     var newBufferedAmount = this.bufferedAmount + length;
     var bufferNotFull = newBufferedAmount < BUFFER_SIZE;
+
+    if (newBufferedAmount >= BUFFER_SIZE) {
+      // If we buffered more than some arbitrary amount of data,
+      // (65535 right now) we should tell the caller so they can
+      // wait until ondrain is called if they so desire. Once all the
+      //buffered data has been written to the socket, ondrain is
+      // called.
+      this._waitingForDrain = true;
+    }
+
     if (this._inChild) {
+      // In child, we just add buffer length to our bufferedAmount and let
+      // parent to update our bufferedAmount when data have been sent.
       this._bufferedAmount = newBufferedAmount;
-      if (!bufferNotFull) {
-        // This make us return false, we should dispatch ondrain after buffered
-        // data are all sent.
-        this._waitingForDrain = true;
-      }
       return bufferNotFull;
     }
 
@@ -676,15 +687,6 @@ TCPSocket.prototype = {
       this._pendingDataAfterStartTLS.push(new_stream);
     } else {
       this._multiplexStream.appendStream(new_stream);
-    }
-
-    if (newBufferedAmount >= BUFFER_SIZE) {
-      // If we buffered more than some arbitrary amount of data,
-      // (65535 right now) we should tell the caller so they can
-      // wait until ondrain is called if they so desire. Once all the
-      //buffered data has been written to the socket, ondrain is
-      // called.
-      this._waitingForDrain = true;
     }
 
     this._ensureCopying();

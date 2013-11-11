@@ -20,7 +20,7 @@ TCPSocketParentIntermediary.prototype = {
 
     // Create handlers for every possible callback that attempt to trigger
     // corresponding callbacks on the child object.
-    ["open", "drain", "data", "error", "close"].forEach(
+    ["open", "data", "error", "close"].forEach(
       function(p) {
         socket["on" + p] = function(data) {
           aParentSide.sendCallback(p, data.data, socket.readyState,
@@ -87,16 +87,16 @@ TCPSocketParentIntermediary.prototype = {
     return serverSocket;
   },
 
-  sendString: function(aData, aTrackingNumber) {
+  recvSendString: function(aData, aTrackingNumber) {
     let socketInternal = this._socket.QueryInterface(Ci.nsITCPSocketInternal);
     return socketInternal.sendFromChild(aData, null, null,
                                         aTrackingNumber);
   },
 
-  sendArrayBuffer: function(aData, aTrackingNumber) {
+  recvSendArrayBuffer: function(aData, aTrackingNumber) {
     let socketInternal = this._socket.QueryInterface(Ci.nsITCPSocketInternal);
     return socketInternal.sendFromChild(aData, 0, aData.byteLength,
-                                      aTrackingNumber);
+                                        aTrackingNumber);
   },
 
   classID: Components.ID("{afa42841-a6cb-4a91-912f-93099f6a3d18}"),
