@@ -35,8 +35,9 @@ protocol PTCPSocket
   manager PNecko;
 
 parent:
-  // Message sent when child's open() is called. This message requests
-  // parent to create a TCPSocket to given |host| and |port|, 
+  // Forward calling to child's open() method to parent, expect TCPOptions
+  // is expanded to |useSSL| (from TCPOptions.useSecureTransport) and
+  // |binaryType| (from TCPOption.binaryType).
   Open(nsString host, uint16_t port, bool useSSL, nsString binaryType);
 
   // When child received data (send() is called), this message requrests
@@ -56,7 +57,7 @@ parent:
   Close();
 
 child:
-  // Forward events that is dispatched by parent to child.
+  // Forward events that is dispatched by parent.
   Callback(nsString type, CallbackData data, nsString readyState);
 
   // Update child's bufferedAmount when parent's bufferedAmount is updated.

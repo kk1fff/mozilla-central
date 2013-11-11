@@ -195,8 +195,8 @@ TCPSocketParent::RecvClose()
 }
 
 NS_IMETHODIMP
-TCPSocketParent::SendCallback(const nsAString& aType, const JS::Value& aDataVal,
-                              const nsAString& aReadyState, JSContext* aCx)
+TCPSocketParent::SendEvent(const nsAString& aType, const JS::Value& aDataVal,
+                           const nsAString& aReadyState, JSContext* aCx)
 {
   if (!mIPCOpen) {
     NS_WARNING("Dropping callback due to no IPC connection");

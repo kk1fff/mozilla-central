@@ -28,9 +28,9 @@ interface nsITCPSocketParent : nsISupports
   //        Serialized data that is passed to event handler.
   // @param readyState
   //        Current ready state.
-  [implicit_jscontext] void sendCallback(in DOMString type,
-                                         in jsval data,
-                                         in DOMString readyState);
+  [implicit_jscontext] void sendEvent(in DOMString type,
+                                      in jsval data,
+                                      in DOMString readyState);
 
   // Initialize a parent socket object. It is called from the parent side socket,
   // which is generated in accepting any open request on the parent side.
@@ -45,6 +45,13 @@ interface nsITCPSocketParent : nsISupports
 
   // When parent's buffered amount is updated and it wants to inform child to
   // update the bufferedAmount as well.
+  //
+  // @param bufferedAmount
+  //        The new value of bufferedAmount that is going to be set to child's
+  //        bufferedAmount.
+  // @param trackingNumber
+  //        Parent's current tracking number. It's to ensure the bufferedAmount
+  //        is updated after lastest send() call.
   void sendUpdateBufferedAmount(in uint32_t bufferedAmount, in uint32_t trackingNumber);
 };
 

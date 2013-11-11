@@ -23,8 +23,8 @@ TCPSocketParentIntermediary.prototype = {
     ["open", "data", "error", "close"].forEach(
       function(p) {
         socket["on" + p] = function(data) {
-          aParentSide.sendCallback(p, data.data, socket.readyState,
-                                   socket.bufferedAmount);
+          aParentSide.sendEvent(p, data.data, socket.readyState,
+                                socket.bufferedAmount);
         };
       }
     );
