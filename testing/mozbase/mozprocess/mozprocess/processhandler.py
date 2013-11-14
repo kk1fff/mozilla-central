@@ -149,6 +149,7 @@ class ProcessHandlerMixin(object):
                 Returns the main process's exit code
             """
             # This call will be different for each OS
+            print "Patrick: Process.wait()"
             self.returncode = self._wait()
             self._cleanup()
             return self.returncode
@@ -400,7 +401,7 @@ falling back to not using job objects for managing child processes"""
                             pass
 
             def _wait(self):
-
+                print "!!!!!!!!!! _wait 1"
                 # First, check to see if the process is still running
                 if self._handle:
                     self.returncode = winprocess.GetExitCodeProcess(self._handle)
@@ -408,6 +409,7 @@ falling back to not using job objects for managing child processes"""
                     # Dude, the process is like totally dead!
                     return self.returncode
 
+                print "!!!!!!!!!! _wait 2"
                 # Python 2.5 uses isAlive versus is_alive use the proper one
                 threadalive = False
                 if hasattr(self, "_procmgrthread"):
@@ -415,6 +417,7 @@ falling back to not using job objects for managing child processes"""
                         threadalive = self._procmgrthread.is_alive()
                     else:
                         threadalive = self._procmgrthread.isAlive()
+                print "!!!!!!!!!! _wait 3"
                 if self._job and threadalive: 
                     # Then we are managing with IO Completion Ports
                     # wait on a signal so we know when we have seen the last
@@ -439,6 +442,7 @@ falling back to not using job objects for managing child processes"""
 
                     if err is not None:
                         raise OSError(err)
+                    print "!!!!!!!!!! _wait 4"
 
 
                 else:
@@ -469,6 +473,7 @@ falling back to not using job objects for managing child processes"""
                         rc = winprocess.GetLastError()
                         if rc:
                             raise WinError(rc)
+                    print "!!!!!!!!!! _wait 5"
 
                     self._cleanup()
 
@@ -511,18 +516,22 @@ falling back to not using job objects for managing child processes"""
                     self._handle = None
 
         elif mozinfo.isMac or mozinfo.isUnix:
-
             def _wait(self):
+                print("Patrick isMac or isUnix: Process._wait 1")
                 """ Haven't found any reason to differentiate between these platforms
                     so they all use the same wait callback.  If it is necessary to
                     craft different styles of wait, then a new _wait method
                     could be easily implemented.
                 """
 
+                print("Patrick isMac or isUnix: Process._wait 1")
                 if not self._ignore_children:
                     try:
                         # os.waitpid returns a (pid, status) tuple
-                        return os.waitpid(self.pid, 0)[1]
+                        print("Patrick isMac or isUnix: Process._wait 2")
+                        r000 =  os.waitpid(self.pid, 0)[1]
+                        print("Patrick isMac or isUnix: Process._wait 3")
+                        return r000
                     except OSError, e:
                         if getattr(e, "errno", None) != 10:
                             # Error 10 is "no child process", which could indicate normal
@@ -533,7 +542,9 @@ falling back to not using job objects for managing child processes"""
 
                 else:
                     # For non-group wait, call base class
+                    print("Patrick isMac or isUnix: Process._wait 4")
                     subprocess.Popen.wait(self)
+                    print("Patrick isMac or isUnix: Process._wait 5")
                     return self.returncode
 
             def _cleanup(self):
@@ -881,4 +892,5 @@ class ProcessHandler(ProcessHandlerMixin):
             self.output = storeoutput.output
             kwargs['processOutputLine'].append(storeoutput)
 
+        print("Patrick: ProcessHandler: " + str(cmd))
         ProcessHandlerMixin.__init__(self, cmd, **kwargs)

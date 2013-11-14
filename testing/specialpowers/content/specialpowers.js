@@ -81,6 +81,7 @@ SpecialPowers.prototype._messageReceived = function(aMessage) {
 };
 
 SpecialPowers.prototype.quit = function() {
+  dump("Patrick: SpecialPower.quit()\n");
   sendAsyncMessage("SpecialPowers.Quit", {});
 };
 

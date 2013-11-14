@@ -356,6 +356,7 @@ TestRunner.runNextTest = function() {
 
         SpecialPowers.unregisterProcessCrashObservers();
 
+        TestRunner.log("Patrick: Test end 2");
         TestRunner.log("TEST-START | Shutdown"); // used by automation.py
         TestRunner.log("Passed:  " + $("pass-count").innerHTML);
         TestRunner.log("Failed:  " + $("fail-count").innerHTML);
@@ -366,24 +367,31 @@ TestRunner.runNextTest = function() {
           TestRunner.log("SimpleTest FINISHED");
         }
 
+        TestRunner.log("Patrick: Test end 3");
         if (TestRunner.repeat == 0 && TestRunner.onComplete) {
+             TestRunner.log("Patrick: Test end 4");
              TestRunner.onComplete();
          }
 
         if (TestRunner._currentLoop <= TestRunner.repeat && !TestRunner._haltTests) {
+          TestRunner.log("Patrick: Test end 5");
           TestRunner._currentLoop++;
           TestRunner.resetTests(TestRunner._urls);
           TestRunner._loopIsRestarting = true;
         } else {
+          TestRunner.log("Patrick: Test end 6");
           // Loops are finished
           if (TestRunner.logEnabled) {
             TestRunner.log("TEST-INFO | Ran " + TestRunner._currentLoop + " Loops");
             TestRunner.log("SimpleTest FINISHED");
           }
 
-          if (TestRunner.onComplete)
+          if (TestRunner.onComplete) {
+            TestRunner.log("Patrick: Test end 7: " + TestRunner.onComplete.toString());
             TestRunner.onComplete();
+          }
        }
+       TestRunner.log("Patrick: Test end 8");
        TestRunner.generateFailureList();
     }
 };

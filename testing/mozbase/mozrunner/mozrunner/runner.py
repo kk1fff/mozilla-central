@@ -9,6 +9,7 @@ import traceback
 from mozprocess.processhandler import ProcessHandler
 import mozcrash
 import mozlog
+import threading
 
 # we can replace this method with 'abc'
 # (http://docs.python.org/library/abc.html) when we require Python 2.6+
@@ -59,10 +60,12 @@ class Runner(object):
             cmd = list(debug_args) + cmd
 
         if interactive:
+            print("Patrick: process_class 1 with " + str(cmd))
             self.process_handler = subprocess.Popen(cmd, env=self.env)
             # TODO: other arguments
         else:
             # this run uses the managed processhandler
+            print("Patrick: process_class 2 with " + str(cmd))
             self.process_handler = self.process_class(cmd, env=self.env, **self.kp_kwargs)
             self.process_handler.run(timeout, outputTimeout)
 
@@ -80,10 +83,14 @@ class Runner(object):
             if isinstance(self.process_handler, subprocess.Popen):
                 self.returncode = self.process_handler.wait()
             else:
+                print "Patrick: Runner.wait 1 " + str(self.command) + ", thread num: " + str(threading.activeCount())
                 self.process_handler.wait(timeout)
+                print "Patrick: Runner.wait 2"
                 self.returncode = self.process_handler.proc.poll()
+                print "Patrick: Runner.wait 3"
                 if self.returncode is not None:
                     self.process_handler = None
+                print "Patrick: Runner.wait 4"
         elif self.returncode is None:
             raise RunnerNotStartedError("Wait called before runner started")
 

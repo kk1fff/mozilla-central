@@ -308,6 +308,8 @@ PreallocatedProcessManagerImpl::MaybeForgetSpare(ContentParent* aContent)
 void
 PreallocatedProcessManagerImpl::OnNuwaReady()
 {
+  printf_stderr("Patrick: OnNuwaReady\n");
+
   NS_ASSERTION(!mIsNuwaReady, "Multiple Nuwa processes created!");
   ProcessPriorityManager::SetProcessPriority(mPreallocatedAppProcess,
                                              hal::PROCESS_PRIORITY_FOREGROUND);

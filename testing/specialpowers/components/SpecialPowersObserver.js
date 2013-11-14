@@ -144,6 +144,7 @@ SpecialPowersObserver.prototype = new SpecialPowersObserverAPI();
         }
         break;
       case "SpecialPowers.Quit":
+        dump("Patrick: SpecialPowersObserver: SpecialPowers.Quit\n");
         let appStartup = Cc["@mozilla.org/toolkit/app-startup;1"].getService(Ci.nsIAppStartup);
         appStartup.quit(Ci.nsIAppStartup.eForceQuit);
         break;

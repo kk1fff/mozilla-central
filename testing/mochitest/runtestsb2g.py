@@ -121,7 +121,7 @@ class B2GMochitest(MochitestUtilsMixin):
                 if mozinfo.info['debug']:
                     options.timeout = 420
                 else:
-                    options.timeout = 300
+                    options.timeout = 30
             timeout = options.timeout + 30.0
 
         log.info("runtestsb2g.py | Running tests: start.")
@@ -136,7 +136,9 @@ class B2GMochitest(MochitestUtilsMixin):
                             'test_script_args': self.test_script_args }
             self.runner = B2GRunner(**runner_args)
             self.runner.start(outputTimeout=timeout)
+            print "!!!!!!!!!!!! self.runner.wait calling"
             status = self.runner.wait()
+            print "!!!!!!!!!!!! self.runner.wait return"
             if status is None:
                 # the runner has timed out
                 status = 124
@@ -171,6 +173,7 @@ class B2GDeviceMochitest(B2GMochitest):
     def __init__(self, marionette, devicemanager, profile_data_dir,
                  local_binary_dir, remote_test_root=None, remote_log_file=None):
         B2GMochitest.__init__(self, marionette, out_of_process=True, profile_data_dir=profile_data_dir)
+        print "Patrick: B2GDeviceMochitest"
         self._dm = devicemanager
         self.remote_test_root = remote_test_root or self._dm.getDeviceRoot()
         self.remote_profile = posixpath.join(self.remote_test_root, 'profile')
@@ -342,6 +345,8 @@ def run_remote_mochitests(parser, options):
         except:
             pass
         retVal = 1
+
+    l = raw_input("Will leave:")
 
     sys.exit(retVal)
 

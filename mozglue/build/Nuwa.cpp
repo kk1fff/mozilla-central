@@ -19,7 +19,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <vector>
-
+#include <android/log.h>
 #include "mozilla/LinkedList.h"
 #include "Nuwa.h"
 
@@ -1477,6 +1477,7 @@ ForkIPCProcess() {
 
   if (pid > 0) {
     // in the parent
+    __android_log_print(ANDROID_LOG_INFO, "Gecko", "Patrick: ForkIPCProcess: %d", pid);
     AddNewProcess(pid, sProtoFdInfos, sProtoFdInfosSize);
     CloseAllProtoSockets(sProtoFdInfos, sProtoFdInfosSize);
   } else {

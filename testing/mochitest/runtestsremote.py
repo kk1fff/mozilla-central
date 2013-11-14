@@ -433,6 +433,7 @@ class MochiRemote(Mochitest):
         incr = 1
         logFile = [] 
         logFile.append("0 INFO SimpleTest START")
+        print("Patrick: printLog")
         for line in self.logLines:
             if line.startswith("INFO TEST-PASS"):
                 passed += 1

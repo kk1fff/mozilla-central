@@ -71,7 +71,11 @@ function runTest()
   SpecialPowers.setBoolPref('dom.ipc.processPrelaunch.enabled', true);
 }
 
-testLoader.onTestReady = runTest;
+function runTest1() {
+    setTimeout(function() { SimpleTest.finish(); }, 0);
+}
+
+testLoader.onTestReady = runTest1;
 </script>
 </body>
 </html>

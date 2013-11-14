@@ -104,6 +104,7 @@ public:
 
   NS_IMETHOD Run() {
     // Tell the appshell to exit
+    printf_stderr("Patrick: nsAppExitEvent is running\n");
     mService->mAppShell->Exit();
 
     mService->mRunning = false;
@@ -442,10 +443,12 @@ nsAppStartup::Quit(uint32_t aMode)
       // shut down. Well, assuming that all *this* stuff works ;-).
       nsCOMPtr<nsIRunnable> event = new nsAppExitEvent(this);
       rv = NS_DispatchToCurrentThread(event);
+      printf_stderr("Patrick: dispatching nsAppExitEvent\n");
       if (NS_SUCCEEDED(rv)) {
         postedExitEvent = true;
       }
       else {
+        printf_stderr("Patrick: failed to dispatch nsAppExitEvent\n");
         NS_WARNING("failed to dispatch nsAppExitEvent");
       }
     }
