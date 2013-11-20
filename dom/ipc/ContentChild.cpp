@@ -1313,8 +1313,9 @@ PreloadSlowThings()
         ContentChild::GetSingleton()->RecvGarbageCollect();
 
         MessageLoop::current()->
-                PostTask(FROM_HERE,
-                         NewRunnableFunction(OnFinishNuwaPreparation));
+                PostDelayedTask(FROM_HERE,
+                                NewRunnableFunction(OnFinishNuwaPreparation),
+                                30000);
     }
 #endif
 }
